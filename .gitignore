@@ -1,6 +1,144 @@
-.vscode
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
 node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Project specific
+.env
+*.sqlite3
+postgres-data/
+.coverage
+coverage/
+.pytest_cache/
+__pycache__/
+*.pyc
+.mypy_cache/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Frontend build
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# Backend
+backend/static/
+backend/media/
+backend/logs/
+backend/celerybeat-schedule
+backend/celerybeat.pid
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Local development
+.local/
+local_settings.py
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.priv
+
+# Alembic
+alembic.ini
+migrations/
+versions/
+
+# Testing
+.coverage
+coverage.xml
+nosetests.xml
+unittest.xml
+.pytest_cache/
+.tox/
+.nox/
+.hypothesis/
+.behaverc
+.pytest
+
+# Documentation
+docs/_build/
+docs/api/
+site/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Virtual Environment
+.python-version
+.env
+.venv/
+venv/
+ENV/
