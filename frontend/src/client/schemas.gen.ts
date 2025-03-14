@@ -499,3 +499,204 @@ export const ValidationErrorSchema = {
   required: ["loc", "msg", "type"],
   title: "ValidationError",
 } as const
+
+export const AccountPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    acnt_name: {
+      type: "string",
+      title: "Account Name",
+    },
+    cano: {
+      type: "string",
+      title: "Account Number",
+    },
+    acnt_prdt_cd: {
+      type: "string",
+      title: "Product Code",
+    },
+    acnt_type: {
+      type: "string",
+      title: "Account Type",
+    },
+    hts_id: {
+      type: "string",
+      title: "HTS ID",
+    },
+    is_active: {
+      type: "boolean",
+      title: "Is Active",
+    },
+    owner_id: {
+      type: "string",
+      format: "uuid",
+      title: "Owner Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+    api_config: {
+      $ref: "#/components/schemas/AccountAPIConfigPublic",
+    },
+  },
+  type: "object",
+  required: ["id", "acnt_name", "cano", "acnt_prdt_cd", "acnt_type", "hts_id", "is_active", "owner_id", "created_at", "updated_at"],
+  title: "AccountPublic",
+} as const
+
+export const AccountAPIConfigPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    app_key: {
+      type: "string",
+      title: "App Key",
+    },
+    app_secret: {
+      type: "string",
+      title: "App Secret",
+    },
+    discord_webhook_url: {
+      type: "string",
+      title: "Discord Webhook URL",
+    },
+    account_id: {
+      type: "string",
+      format: "uuid",
+      title: "Account Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  type: "object",
+  required: ["id", "app_key", "app_secret", "account_id", "created_at", "updated_at"],
+  title: "AccountAPIConfigPublic",
+} as const
+
+export const AccountCreateSchema = {
+  properties: {
+    acnt_name: {
+      type: "string",
+      title: "Account Name",
+    },
+    cano: {
+      type: "string",
+      title: "Account Number",
+    },
+    acnt_prdt_cd: {
+      type: "string",
+      title: "Product Code",
+    },
+    acnt_type: {
+      type: "string",
+      title: "Account Type",
+    },
+    hts_id: {
+      type: "string",
+      title: "HTS ID",
+    },
+    is_active: {
+      type: "boolean",
+      title: "Is Active",
+    },
+    app_key: {
+      type: "string",
+      title: "App Key",
+    },
+    app_secret: {
+      type: "string",
+      title: "App Secret",
+    },
+    discord_webhook_url: {
+      type: "string",
+      title: "Discord Webhook URL",
+    },
+  },
+  type: "object",
+  required: ["acnt_name", "cano", "acnt_prdt_cd", "acnt_type", "hts_id", "is_active", "app_key", "app_secret"],
+  title: "AccountCreate",
+} as const
+
+export const AccountUpdateSchema = {
+  properties: {
+    acnt_name: {
+      type: "string",
+      title: "Account Name",
+    },
+    cano: {
+      type: "string",
+      title: "Account Number",
+    },
+    acnt_prdt_cd: {
+      type: "string",
+      title: "Product Code",
+    },
+    acnt_type: {
+      type: "string",
+      title: "Account Type",
+    },
+    hts_id: {
+      type: "string",
+      title: "HTS ID",
+    },
+    is_active: {
+      type: "boolean",
+      title: "Is Active",
+    },
+    app_key: {
+      type: "string",
+      title: "App Key",
+    },
+    app_secret: {
+      type: "string",
+      title: "App Secret",
+    },
+    discord_webhook_url: {
+      type: "string",
+      title: "Discord Webhook URL",
+    },
+  },
+  type: "object",
+  title: "AccountUpdate",
+} as const
+
+export const AccountsPublicSchema = {
+  properties: {
+    data: {
+      items: {
+        $ref: "#/components/schemas/AccountPublic",
+      },
+      type: "array",
+      title: "Data",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+  },
+  type: "object",
+  required: ["data", "count"],
+  title: "AccountsPublic",
+} as const

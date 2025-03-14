@@ -1,6 +1,6 @@
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
 
 import {
   type Body_login_login_access_token as AccessToken,
@@ -9,10 +9,10 @@ import {
   type UserPublic,
   type UserRegister,
   UsersService,
-} from "@/client"
-import { handleError } from "@/utils"
+} from "../client"
+import { handleError } from "../utils"
 
-const isLoggedIn = () => {
+const isLoggedIn = (): boolean => {
   return localStorage.getItem("access_token") !== null
 }
 

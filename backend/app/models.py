@@ -1,7 +1,9 @@
 import uuid
+from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import TIMESTAMP, Column
 
 
 # Shared properties
@@ -100,15 +102,16 @@ class AccountBase(SQLModel):
     acnt_name: str | None = Field(default=None, max_length=50)
     cano: str = Field(max_length=20)
     acnt_prdt_cd: str = Field(max_length=20)
-    acnt_type: str = Field(max_length=10)  # 실계좌 또는 모의계좌
+    acnt_type: str = Field(max_length=10)  # live 또는 virtual
     hts_id: str = Field(max_length=50)
     is_active: bool = True
+    app_key: str = Field(max_length=255)
+    app_secret: str = Field(max_length=1024)
+    discord_webhook_url: str | None = Field(default=None, max_length=255)
 
 # Properties to receive on account creation
 class AccountCreate(AccountBase):
-    app_key: str = Field(max_length=255)
-    app_secret: str = Field(max_length=255)
-    discord_webhook_url: str | None = Field(default=None, max_length=255)
+    pass
 
 # Properties to receive on account update
 class AccountUpdate(SQLModel):
@@ -119,53 +122,32 @@ class AccountUpdate(SQLModel):
     hts_id: str | None = Field(default=None, max_length=50)
     is_active: bool | None = None
     app_key: str | None = Field(default=None, max_length=255)
-    app_secret: str | None = Field(default=None, max_length=255)
+    app_secret: str | None = Field(default=None, max_length=1024)
     discord_webhook_url: str | None = Field(default=None, max_length=255)
-
-# Database model for API configuration
-class AccountAPIConfig(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    app_key: str = Field(max_length=255)
-    app_secret: str = Field(max_length=255)
-    discord_webhook_url: str | None = Field(default=None, max_length=255)
-    account_id: uuid.UUID = Field(foreign_key="account.id", unique=True, nullable=False, ondelete="CASCADE")
-    # Relationship 정의 수정
-    account: "Account" = Relationship(
-        back_populates="api_config",
-        sa_relationship_kwargs={"lazy": "joined"}
-    )
-
-# # Database model for API configuration
-# class AccountAPIConfig(AccountBase, table=True):
-#     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-#     app_key: str = Field(max_length=255)
-#     app_secret: str = Field(max_length=255)
-#     discord_webhook_url: str | None = Field(default=None, max_length=255)
-#     account_id: uuid.UUID = Field(foreign_key="account.id", unique=True, nullable=False)
-#     # Relationship 정의 수정
-#     account: "Account" = Relationship(
-#         back_populates="api_config",
-#         sa_relationship_kwargs={"lazy": "joined"}
-#     )
+    kis_access_token: str | None = Field(default=None, max_length=1024)
+    access_token_expired: datetime | None = None
 
 # Database model
 class Account(AccountBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
     owner: User | None = Relationship(back_populates="accounts")
-    # api_config: AccountAPIConfig | None = Relationship(back_populates="account", sa_relationship_kwargs={"uselist": False})
-    
-    # API 설정 정보와 1:1 관계, lazy="joined"로 설정하여 즉시 로드
-    api_config: AccountAPIConfig | None = Relationship(
-        back_populates="account",
-        sa_relationship_kwargs={"uselist": False, "lazy": "joined"}
-    )
+    owner_name: str | None = None
+    kis_access_token: str | None = Field(default=None, max_length=1024)
+    access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.owner:
+            self.owner_name = self.owner.full_name if self.owner.full_name else self.owner.email
 
 # Properties to return via API
 class AccountPublic(AccountBase):
     id: uuid.UUID
     owner_id: uuid.UUID
-    api_config: AccountAPIConfig | None
+    owner_name: str | None = None
+    kis_access_token: str | None = Field(default=None, max_length=1024)
+    access_token_expired: datetime | None = Field(default=None)
 
 class AccountsPublic(SQLModel):
     data: list[AccountPublic]

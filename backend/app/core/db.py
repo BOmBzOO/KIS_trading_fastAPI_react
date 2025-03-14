@@ -7,16 +7,25 @@ from app.models import (
     User,
     UserCreate,
     Account,
-    AccountAPIConfig,
     Item
 )
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+# PostgreSQL 연결 엔진 생성
+engine = create_engine(
+    str(settings.SQLALCHEMY_DATABASE_URI),
+    echo=False,  # SQL 쿼리 로깅 비활성화
+    pool_pre_ping=True,  # 연결 확인
+)
+
+# 세션 생성 함수
+def get_session() -> Session:
+    with Session(engine) as session:
+        yield session
 
 # Make sure all SQLModel models are imported before initializing the metadata
 def init_db(session: Session) -> None:
     # Ensure all models are registered with SQLModel
-    from app.models import User, Account, AccountAPIConfig, Item
+    from app.models import User, Account, Item
     SQLModel.metadata.create_all(engine)
 
     user = session.query(User).filter(User.email == settings.FIRST_SUPERUSER).first()

@@ -219,3 +219,113 @@ export type UtilsTestEmailData = {
 export type UtilsTestEmailResponse = Message
 
 export type UtilsHealthCheckResponse = boolean
+
+
+export interface Account {
+  id: number;
+  name: string;
+  type: string;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAccountRequest {
+  name: string;
+  type: string;
+}
+
+export interface UpdateAccountRequest {
+  name?: string;
+  type?: string;
+}
+
+export interface AccountPublic {
+  id: string
+  acnt_name: string
+  cano: string
+  acnt_prdt_cd: string
+  acnt_type: string
+  hts_id: string
+  is_active: boolean
+  owner_id: string
+  owner_name: string
+  created_at: string
+  updated_at: string
+  kis_access_token: string
+  app_key: string
+  app_secret: string
+  discord_webhook_url?: string
+  api_config?: AccountAPIConfigPublic
+}
+
+export interface AccountAPIConfigPublic {
+  id: string
+  app_key: string
+  app_secret: string
+  discord_webhook_url?: string
+  account_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AccountCreate {
+  acnt_name: string
+  cano: string
+  acnt_prdt_cd: string
+  acnt_type: string
+  hts_id: string
+  is_active: boolean
+  app_key: string
+  app_secret: string
+  discord_webhook_url?: string
+}
+
+export interface AccountUpdate {
+  acnt_name?: string
+  cano?: string
+  acnt_prdt_cd?: string
+  acnt_type?: string
+  hts_id?: string
+  is_active?: boolean
+  app_key?: string
+  app_secret?: string
+  discord_webhook_url?: string
+}
+
+export interface AccountsPublic {
+  data: Array<AccountPublic>
+  count: number
+}
+
+export interface AccountsReadAccountsData {
+  limit?: number
+  skip?: number
+}
+
+export type AccountsReadAccountsResponse = AccountsPublic
+
+export interface AccountsCreateAccountData {
+  requestBody: AccountCreate
+}
+
+export type AccountsCreateAccountResponse = AccountPublic
+
+export interface AccountsReadAccountData {
+  account_id: string
+}
+
+export type AccountsReadAccountResponse = AccountPublic
+
+export interface AccountsUpdateAccountData {
+  account_id: string
+  requestBody: AccountUpdate
+}
+
+export type AccountsUpdateAccountResponse = AccountPublic
+
+export interface AccountsDeleteAccountData {
+  account_id: string
+}
+
+export type AccountsDeleteAccountResponse = Message
