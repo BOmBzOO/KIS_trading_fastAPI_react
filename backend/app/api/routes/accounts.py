@@ -377,7 +377,7 @@ def get_account_balance(
                 "authorization": f"Bearer {account.kis_access_token}",
                 "appkey": account.app_key,
                 "appsecret": account.app_secret,
-                "tr_id": "TTTC8434R" if account.acnt_type == "live" else "VTTC8434R",
+                "tr_id": "VTTC8434R" if account.acnt_type == "paper" else "TTTC8434R",
                 "tr_cont": "",
                 "content-type": "application/json"
             }
