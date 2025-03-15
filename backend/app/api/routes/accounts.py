@@ -382,7 +382,7 @@ def get_account_balance(
                 "content-type": "application/json"
             }
         )
-        print(response.json())
+        # print(response.json())
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:

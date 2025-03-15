@@ -50,9 +50,9 @@ const EditAccount = ({ account }: EditAccountProps) => {
       acnt_prdt_cd: account.acnt_prdt_cd,
       acnt_type: account.acnt_type,
       hts_id: account.hts_id,
-      app_key: account.api_config?.app_key ?? "",
-      app_secret: account.api_config?.app_secret ?? "",
-      discord_webhook_url: account.api_config?.discord_webhook_url,
+      app_key: account.api_config?.app_key || undefined,
+      app_secret: account.api_config?.app_secret || undefined,
+      discord_webhook_url: account.api_config?.discord_webhook_url || undefined,
     },
   })
 
@@ -178,33 +178,27 @@ const EditAccount = ({ account }: EditAccountProps) => {
               </Field>
 
               <Field
-                required
                 invalid={!!errors.app_key}
                 errorText={errors.app_key?.message}
                 label="App Key"
               >
                 <Input
                   id="app_key"
-                  {...register("app_key", {
-                    required: "App Key는 필수입니다",
-                  })}
-                  placeholder="App Key"
+                  {...register("app_key")}
+                  placeholder={account.api_config?.app_key ? "기존 App Key 사용" : "App Key"}
                   type="text"
                 />
               </Field>
 
               <Field
-                required
                 invalid={!!errors.app_secret}
                 errorText={errors.app_secret?.message}
                 label="App Secret"
               >
                 <Input
                   id="app_secret"
-                  {...register("app_secret", {
-                    required: "App Secret는 필수입니다",
-                  })}
-                  placeholder="App Secret"
+                  {...register("app_secret")}
+                  placeholder={account.api_config?.app_secret ? "기존 App Secret 사용" : "App Secret"}
                   type="password"
                 />
               </Field>
