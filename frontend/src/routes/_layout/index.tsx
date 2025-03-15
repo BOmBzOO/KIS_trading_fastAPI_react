@@ -41,7 +41,7 @@ function Dashboard() {
         throw new Error(`잔고 조회 실패 (${response.status}): ${errorText}`);
       }
       const data = await response.json();
-      console.log('Balance data:', data);
+      console.log('Balance API Response:', JSON.stringify(data, null, 2));
       setBalanceInfo(data);
     } catch (error) {
       console.error('잔고 조회 중 오류 발생:', error);
@@ -66,118 +66,301 @@ function Dashboard() {
   return (
     <Container maxW="full">
       <Box pt={12} m={4}>
-        <Text fontSize="2xl" truncate maxW="sm">
+        <Text fontSize="2xl" fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">
           안녕하세요, {currentUser?.full_name || currentUser?.email}님 👋🏼
         </Text>
-        <Text mb={8}>환영합니다!</Text>
+        <Text mb={8} color="var(--chakra-colors-chakra-text-color)">환영합니다!</Text>
 
         <Box>
-          <Text fontSize="xl" mb={4}>내 증권 계좌 정보</Text>
+          <Text fontSize="xl" fontWeight="bold" mb={6} color="var(--chakra-colors-chakra-text-color)">내 증권 계좌 정보</Text>
           {accountsLoading ? (
             <Spinner />
           ) : !accounts?.data.length ? (
-            <Text>등록된 계좌가 없습니다.</Text>
+            <Text color="var(--chakra-colors-chakra-text-color)">등록된 계좌가 없습니다.</Text>
           ) : (
-            <Box overflowX="auto">
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <Box overflowX="auto" borderRadius="lg" border="1px solid var(--chakra-colors-chakra-border-color)">
+              <table style={{ 
+                width: "100%", 
+                borderCollapse: "collapse",
+                color: "var(--chakra-colors-chakra-text-color)"
+              }}>
                 <thead>
-                  <tr>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>계좌명</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>계좌번호</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>상품코드</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>계좌유형</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>HTS ID</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>소유주</th>
-                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>상태</th>
+                  <tr style={{ backgroundColor: "var(--chakra-colors-chakra-subtle-bg)" }}>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>계좌명</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>계좌번호</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>상품코드</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>계좌유형</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>HTS ID</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>소유주</th>
+                    <th style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "left", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)",
+                      fontWeight: "bold"
+                    }}>상태</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.data.map((account) => (
                     <React.Fragment key={account.id}>
-                      <tr>
+                      <tr style={{ 
+                        backgroundColor: selectedAccountId === account.id ? "var(--chakra-colors-chakra-subtle-bg)" : "transparent",
+                        transition: "background-color 0.2s"
+                      }}>
                         <td 
                           style={{ 
-                            padding: "8px", 
-                            borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0",
+                            padding: "12px 16px", 
+                            borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
                             cursor: "pointer",
-                            color: "#3182ce"
+                            color: "var(--chakra-colors-blue-500)",
+                            fontWeight: "500"
                           }}
                           onClick={() => handleAccountClick(account)}
                         >
                           {account.acnt_name}
                         </td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.cano}</td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.acnt_prdt_cd}</td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.acnt_type}</td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.hts_id}</td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.owner_name}</td>
-                        <td style={{ padding: "8px", borderBottom: selectedAccountId === account.id ? "none" : "1px solid #e2e8f0" }}>{account.is_active ? "활성" : "비활성"}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.cano}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.acnt_prdt_cd}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.acnt_type}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.hts_id}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.owner_name}</td>
+                        <td style={{ 
+                          padding: "12px 16px", 
+                          borderBottom: selectedAccountId === account.id ? "none" : "1px solid var(--chakra-colors-chakra-border-color)",
+                          color: "var(--chakra-colors-chakra-text-color)"
+                        }}>{account.is_active ? "활성" : "비활성"}</td>
                       </tr>
                       {selectedAccountId === account.id && (
                         <tr>
-                          <td colSpan={7} style={{ padding: "16px", backgroundColor: "#f8f9fa", borderBottom: "1px solid #e2e8f0" }}>
+                          <td colSpan={7} style={{ 
+                            padding: "24px", 
+                            backgroundColor: "var(--chakra-colors-chakra-subtle-bg)",
+                            borderBottom: "1px solid var(--chakra-colors-chakra-border-color)"
+                          }}>
                             {isLoading ? (
                               <Spinner />
                             ) : balanceInfo ? (
                               <Box>
-                                <Text fontWeight="bold" fontSize="lg" mb={4}>계좌 잔고 정보</Text>
-                                <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4} mb={6}>
-                                  <Box>
-                                    <Text fontWeight="bold">예수금</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.dnca_tot_amt?.toLocaleString() || '0'}원</Text>
+                                <Text fontWeight="bold" fontSize="xl" mb={6} color="var(--chakra-colors-chakra-text-color)">계좌 잔고 정보</Text>
+                                <Box 
+                                  display="grid" 
+                                  gridTemplateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} 
+                                  gap={6} 
+                                  mb={8}
+                                >
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">예수금</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">{balanceInfo.output2?.[0]?.dnca_tot_amt?.toLocaleString() || '0'}원</Text>
                                   </Box>
-                                  <Box>
-                                    <Text fontWeight="bold">D+2 예수금</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.d2_dps_amt?.toLocaleString() || '0'}원</Text>
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">D+2 예수금</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">{balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt?.toLocaleString() || '0'}원</Text>
                                   </Box>
-                                  <Box>
-                                    <Text fontWeight="bold">총평가금액</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.tot_evlu_amt?.toLocaleString() || '0'}원</Text>
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">총평가금액</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">{balanceInfo.output2?.[0]?.tot_evlu_amt?.toLocaleString() || '0'}원</Text>
                                   </Box>
-                                  <Box>
-                                    <Text fontWeight="bold">매입금액 합계</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.pchs_amt_smtl?.toLocaleString() || '0'}원</Text>
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">매입금액 합계</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">{balanceInfo.output2?.[0]?.pchs_amt_smtl_amt?.toLocaleString() || '0'}원</Text>
                                   </Box>
-                                  <Box>
-                                    <Text fontWeight="bold">평가손익 합계</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.evlu_pfls_amt_smtl?.toLocaleString() || '0'}원</Text>
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">평가손익 합계</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">{balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt?.toLocaleString() || '0'}원</Text>
                                   </Box>
-                                  <Box>
-                                    <Text fontWeight="bold">총수익률</Text>
-                                    <Text>{balanceInfo.output2?.[0]?.tot_pftrt?.toFixed(2) || '0'}%</Text>
+                                  <Box 
+                                    p={4} 
+                                    borderRadius="lg" 
+                                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                                    backgroundColor="var(--chakra-colors-chakra-bg)"
+                                  >
+                                    <Text fontWeight="bold" mb={2} color="var(--chakra-colors-chakra-text-color)">총수익률</Text>
+                                    <Text fontSize="xl" color="var(--chakra-colors-chakra-text-color)">
+                                      {(() => {
+                                        const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
+                                        const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
+                                        if (pchsAmt === 0) return '0.00';
+                                        return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
+                                      })()}%
+                                    </Text>
                                   </Box>
                                 </Box>
 
                                 {balanceInfo.output1?.length > 0 && (
                                   <Box>
-                                    <Text fontWeight="bold" fontSize="lg" mb={2}>보유종목 정보</Text>
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                      <thead>
-                                        <tr>
-                                          <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>종목명</th>
-                                          <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>보유수량</th>
-                                          <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>평가금액</th>
-                                          <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>평가손익</th>
-                                          <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>수익률</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {balanceInfo.output1.map((item: any, index: number) => (
-                                          <tr key={index}>
-                                            <td style={{ padding: "8px", borderBottom: "1px solid #e2e8f0" }}>{item.prdt_name}</td>
-                                            <td style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>{item.hldg_qty?.toLocaleString()}</td>
-                                            <td style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>{item.evlu_amt?.toLocaleString()}</td>
-                                            <td style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>{item.evlu_pfls_amt?.toLocaleString()}</td>
-                                            <td style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>{item.evlu_pfls_rt?.toFixed(2)}%</td>
+                                    <Text fontWeight="bold" fontSize="xl" mb={4} color="var(--chakra-colors-chakra-text-color)">보유종목 정보</Text>
+                                    <Box overflowX="auto" borderRadius="lg" border="1px solid var(--chakra-colors-chakra-border-color)">
+                                      <table style={{ 
+                                        width: "100%", 
+                                        borderCollapse: "collapse",
+                                        color: "var(--chakra-colors-chakra-text-color)"
+                                      }}>
+                                        <thead>
+                                          <tr style={{ backgroundColor: "var(--chakra-colors-chakra-subtle-bg)" }}>
+                                            <th style={{ 
+                                              padding: "12px 16px", 
+                                              textAlign: "left", 
+                                              borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                              color: "var(--chakra-colors-chakra-text-color)",
+                                              fontWeight: "bold"
+                                            }}>종목명</th>
+                                            <th style={{ 
+                                              padding: "12px 16px", 
+                                              textAlign: "right", 
+                                              borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                              color: "var(--chakra-colors-chakra-text-color)",
+                                              fontWeight: "bold"
+                                            }}>보유수량</th>
+                                            <th style={{ 
+                                              padding: "12px 16px", 
+                                              textAlign: "right", 
+                                              borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                              color: "var(--chakra-colors-chakra-text-color)",
+                                              fontWeight: "bold"
+                                            }}>평가금액</th>
+                                            <th style={{ 
+                                              padding: "12px 16px", 
+                                              textAlign: "right", 
+                                              borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                              color: "var(--chakra-colors-chakra-text-color)",
+                                              fontWeight: "bold"
+                                            }}>평가손익</th>
+                                            <th style={{ 
+                                              padding: "12px 16px", 
+                                              textAlign: "right", 
+                                              borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                              color: "var(--chakra-colors-chakra-text-color)",
+                                              fontWeight: "bold"
+                                            }}>수익률</th>
                                           </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                                        </thead>
+                                        <tbody>
+                                          {balanceInfo.output1.map((item: any, index: number) => (
+                                            <tr key={index} style={{ 
+                                              backgroundColor: index % 2 === 0 ? "var(--chakra-colors-chakra-subtle-bg)" : "transparent"
+                                            }}>
+                                              <td style={{ 
+                                                padding: "12px 16px", 
+                                                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                                color: "var(--chakra-colors-chakra-text-color)",
+                                                fontWeight: "500"
+                                              }}>{item.prdt_name}</td>
+                                              <td style={{ 
+                                                padding: "12px 16px", 
+                                                textAlign: "right", 
+                                                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                                color: "var(--chakra-colors-chakra-text-color)"
+                                              }}>{item.hldg_qty?.toLocaleString()}</td>
+                                              <td style={{ 
+                                                padding: "12px 16px", 
+                                                textAlign: "right", 
+                                                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                                color: "var(--chakra-colors-chakra-text-color)"
+                                              }}>{item.evlu_amt?.toLocaleString()}</td>
+                                              <td style={{ 
+                                                padding: "12px 16px", 
+                                                textAlign: "right", 
+                                                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                                color: "var(--chakra-colors-chakra-text-color)"
+                                              }}>{item.evlu_pfls_amt?.toLocaleString()}</td>
+                                              <td style={{ 
+                                                padding: "12px 16px", 
+                                                textAlign: "right", 
+                                                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                                                color: "var(--chakra-colors-chakra-text-color)"
+                                              }}>{item.evlu_pfls_rt?.toFixed(2)}%</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </Box>
                                   </Box>
                                 )}
                               </Box>
                             ) : (
-                              <Text>잔고 정보를 불러올 수 없습니다.</Text>
+                              <Text color="var(--chakra-colors-chakra-text-color)">잔고 정보를 불러올 수 없습니다.</Text>
                             )}
                           </td>
                         </tr>
