@@ -33,19 +33,19 @@ async def periodic_token_refresh():
     global background_task_running
     while background_task_running:
         try:
-            async for session in get_session():
-                # 모든 활성화된 계정 조회
-                statement = select(Account).where(Account.is_active == True)
-                accounts = session.exec(statement).all()
-                
-                # 각 계정의 토큰 상태를 확인하고 필요한 경우 갱신
-                for account in accounts:
-                    try:
-                        refresh_token_if_needed(account)
-                    except Exception as e:
-                        print(f"Error refreshing token for account {account.id}: {str(e)}")
-                
-                session.commit()
+            session = next(get_session())
+            # 모든 활성화된 계정 조회
+            statement = select(Account).where(Account.is_active == True)
+            accounts = session.exec(statement).all()
+            
+            # 각 계정의 토큰 상태를 확인하고 필요한 경우 갱신
+            for account in accounts:
+                try:
+                    refresh_token_if_needed(account)
+                except Exception as e:
+                    print(f"Error refreshing token for account {account.id}: {str(e)}")
+            
+            session.commit()
         except Exception as e:
             print(f"Error in periodic token refresh: {str(e)}")
         

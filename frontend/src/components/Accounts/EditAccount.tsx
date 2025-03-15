@@ -86,7 +86,7 @@ const EditAccount = ({ account }: EditAccountProps) => {
       <DialogTrigger asChild>
         <Button variant="ghost">
           <FaExchangeAlt fontSize="16px" />
-          계좌 수정
+          수정
         </Button>
       </DialogTrigger>
       <DialogContent>

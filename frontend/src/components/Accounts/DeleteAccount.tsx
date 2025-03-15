@@ -59,7 +59,7 @@ const DeleteAccount = ({ id }: { id: string }) => {
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" colorPalette="red">
           <FiTrash2 fontSize="16px" />
-          계좌 삭제
+          삭제
         </Button>
       </DialogTrigger>
 
