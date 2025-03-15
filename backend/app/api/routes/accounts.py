@@ -269,15 +269,15 @@ def delete_account(
     session.commit()
     return Message(message="Account deleted successfully")
 
-class BalanceOutput(BaseModel):
-    """잔고 조회 출력 데이터 모델"""
+class BalanceOutput1(BaseModel):
+    """잔고 조회 출력 데이터 모델 - 보유종목 정보"""
     pdno: str | None = None  # 상품번호
     prdt_name: str | None = None  # 상품명
     trad_dvsn_name: str | None = None  # 매매구분명
-    bfdy_buy_amt: int | None = None  # 전일매수금액
-    bfdy_sll_amt: int | None = None  # 전일매도금액
-    thdt_buy_amt: int | None = None  # 금일매수금액
-    thdt_sll_amt: int | None = None  # 금일매도금액
+    bfdy_buy_qty: int | None = None  # 전일매수수량
+    bfdy_sll_qty: int | None = None  # 전일매도수량
+    thdt_buyqty: int | None = None  # 금일매수수량
+    thdt_sll_qty: int | None = None  # 금일매도수량
     hldg_qty: int | None = None  # 보유수량
     ord_psbl_qty: int | None = None  # 주문가능수량
     pchs_avg_pric: float | None = None  # 매입평균가격
@@ -293,44 +293,47 @@ class BalanceOutput(BaseModel):
     expd_dt: str | None = None  # 만기일자
     fltt_rt: float | None = None  # 등락율
     bfdy_cprs_icdc: float | None = None  # 전일대비증감
-    item_mgna_rt: float | None = None  # 종목증거금율
-    grta_rt: float | None = None  # 보증금율
+    item_mgna_rt_name: str | None = None  # 종목증거금율명
+    grta_rt_name: str | None = None  # 보증금율명
     sbst_pric: int | None = None  # 대용가격
-    stck_loan_unpr: int | None = None  # 주식대출단가
+    stck_loan_unpr: float | None = None  # 주식대출단가
+
+class BalanceOutput2(BaseModel):
+    """잔고 조회 출력 데이터 모델 - 계좌 요약 정보"""
     dnca_tot_amt: int | None = None  # 예수금총금액
-    scts_evalm_amt: int | None = None  # 유가평가금액
-    tot_loan_amt: int | None = None  # 대출총금액
-    scts_lend_amt: int | None = None  # 유가대출금액
+    nxdy_excc_amt: int | None = None  # 익일정산금액
+    prvs_rcdl_excc_amt: int | None = None  # 가수도정산금액
     cma_evlu_amt: int | None = None  # CMA평가금액
-    bfdy_buy_qtysum: int | None = None  # 전일매수수량
-    bfdy_sll_qtysum: int | None = None  # 전일매도수량
-    thdt_buy_qtysum: int | None = None  # 금일매수수량
-    thdt_sll_qtysum: int | None = None  # 금일매도수량
-    d2_auto_rdpt_amt: int | None = None  # D+2자동상환금액
-    bfdy_tot_asst_evlu_amt: int | None = None  # 전일총자산평가금액
-    thdt_tot_asst_evlu_amt: int | None = None  # 금일총자산평가금액
+    bfdy_buy_amt: int | None = None  # 전일매수금액
+    thdt_buy_amt: int | None = None  # 금일매수금액
     nxdy_auto_rdpt_amt: int | None = None  # 익일자동상환금액
+    bfdy_sll_amt: int | None = None  # 전일매도금액
+    thdt_sll_amt: int | None = None  # 금일매도금액
+    d2_auto_rdpt_amt: int | None = None  # D+2자동상환금액
+    bfdy_tlex_amt: int | None = None  # 전일거래세금액
+    thdt_tlex_amt: int | None = None  # 금일거래세금액
+    tot_loan_amt: int | None = None  # 대출총금액
+    scts_evlu_amt: int | None = None  # 유가평가금액
     tot_evlu_amt: int | None = None  # 총평가금액
     nass_amt: int | None = None  # 순자산금액
     fncg_gld_auto_rdpt_yn: str | None = None  # 융자금자동상환여부
-    pchs_amt_smtl: int | None = None  # 매입금액합계
-    evlu_amt_smtl: int | None = None  # 평가금액합계
-    evlu_pfls_amt_smtl: int | None = None  # 평가손익금액합계
-    tot_evlu_pfls_amt: int | None = None  # 총평가손익금액
-    tot_pftrt: float | None = None  # 총수익률
-    rlzt_pfls: int | None = None  # 실현손익
-    rlzt_pftrt: float | None = None  # 실현수익률
-    real_evlu_pfls_amt_smtl: int | None = None  # 실평가손익금액합계
-    real_evlu_pfls_amt: int | None = None  # 실평가손익금액
-    real_pftrt: float | None = None  # 실수익률
-    d2_dps_amt: int | None = None  # D+2예수금
+    pchs_amt_smtl_amt: int | None = None  # 매입금액합계금액
+    evlu_amt_smtl_amt: int | None = None  # 평가금액합계금액
+    evlu_pfls_smtl_amt: int | None = None  # 평가손익합계금액
+    tot_stln_slng_chgs: int | None = None  # 총대주매각대금
+    bfdy_tot_asst_evlu_amt: int | None = None  # 전일총자산평가금액
+    asst_icdc_amt: int | None = None  # 자산증감금액
+    asst_icdc_erng_rt: float | None = None  # 자산증감수익율
 
 class BalanceResponse(BaseModel):
     """잔고 조회 응답 모델"""
-    output1: list[BalanceOutput]
+    output1: list[BalanceOutput1]
+    output2: list[BalanceOutput2]
     rt_cd: str
     msg_cd: str
     msg1: str
+    ctx_area_fk100: str | None = None
+    ctx_area_nk100: str | None = None
 
 @router.get("/{account_id}/balance", response_model=BalanceResponse)
 def get_account_balance(
@@ -374,11 +377,12 @@ def get_account_balance(
                 "authorization": f"Bearer {account.kis_access_token}",
                 "appkey": account.app_key,
                 "appsecret": account.app_secret,
-                "tr_id": "VTTC8434R" if account.acnt_type == "virtual" else "TTTC8434R",
+                "tr_id": "TTTC8434R" if account.acnt_type == "live" else "VTTC8434R",
                 "tr_cont": "",
                 "content-type": "application/json"
             }
         )
+        print(response.json())
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
