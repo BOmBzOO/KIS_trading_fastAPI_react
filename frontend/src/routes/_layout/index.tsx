@@ -79,7 +79,7 @@ const PortfolioCard = ({ name, tags, returnRate, status, isSelected, onClick }: 
       backgroundColor: isSelected ? "var(--chakra-colors-blue-900)" : "var(--chakra-colors-chakra-bg)"
     }}
     _hover={{
-      transform: "translateY(-2px)",
+      transform: "translateY(2px)",
       boxShadow: "lg",
       borderColor: "var(--chakra-colors-blue-500)"
     }}
@@ -214,15 +214,10 @@ function Dashboard() {
   }
 
   const handlePortfolioClick = async (portfolio: any) => {
-    if (selectedPortfolio === portfolio.name) {
-      setSelectedPortfolio(null)
-      setBalanceInfo(null)
-    } else {
-      setSelectedPortfolio(portfolio.name)
-      const account = accounts?.data?.find(acc => acc.acnt_name === portfolio.name)
-      if (account) {
-        await fetchBalance(account)
-      }
+    setSelectedPortfolio(portfolio.name)
+    const account = accounts?.data?.find(acc => acc.acnt_name === portfolio.name)
+    if (account) {
+      await fetchBalance(account)
     }
   }
 
@@ -315,6 +310,11 @@ function Dashboard() {
       ])
 
       setPortfolioData(newPortfolioData)
+
+      // 첫 번째 계좌 자동 선택
+      if (newPortfolioData.length > 0) {
+        handlePortfolioClick(newPortfolioData[0])
+      }
     }
 
     fetchInitialData()
@@ -355,134 +355,160 @@ function Dashboard() {
 
       <Box mb={8}>
         <Text fontSize="xl" fontWeight="bold" mb={4}>포트폴리오</Text>
-        <SimpleGrid columns={{ base: 1, md: 3 }} gap={{ base: 4, md: 6 }}>
+        <Flex direction="column" gap={6}>
+          {/* 포트폴리오 카드 목록 - 가로 스크롤 */}
+          <Box 
+            overflowX="auto" 
+            pb={2}
+            css={{
+              '&::-webkit-scrollbar': {
+                height: '8px',
+                borderRadius: '8px',
+                backgroundColor: `var(--chakra-colors-gray-100)`,
+              },
+              '&::-webkit-scrollbar-thumb': {
+                borderRadius: '8px',
+                backgroundColor: `var(--chakra-colors-gray-300)`,
+              },
+            }}
+          >
+            <Flex gap={4} minW="min-content">
+              {portfolioData.map((item, index) => (
+                <Box 
+                  key={index}
+                  minW={{ base: "280px", md: "320px" }}
+                  w={{ base: "280px", md: "320px" }}
+                >
+                  <PortfolioCard 
+                    {...item} 
+                    isSelected={selectedPortfolio === item.name}
+                    onClick={() => handlePortfolioClick(item)}
+                  />
+                </Box>
+              ))}
+            </Flex>
+          </Box>
+
+          {/* 선택된 포트폴리오 상세 정보 */}
           {portfolioData.map((item, index) => (
-            <Box key={index}>
-              <PortfolioCard 
-                {...item} 
-                isSelected={selectedPortfolio === item.name}
-                onClick={() => handlePortfolioClick(item)}
-              />
-              {(!selectedPortfolio || selectedPortfolio === item.name) && (
-                <>
-                  {selectedPortfolio === item.name && (
-                    <>
-                      {isLoading ? (
-                        <Box mt={2} p={4} display="flex" justifyContent="center">
-                          <Spinner />
-                        </Box>
-                      ) : balanceInfo && (
-                        <>
-                          <Box 
-                            mt={2}
-                            p={4}
-                            borderRadius="xl"
-                            border="2px solid var(--chakra-colors-gray-200)"
-                            backgroundColor="var(--chakra-colors-chakra-bg)"
-                            _dark={{
-                              borderColor: "var(--chakra-colors-gray-600)"
-                            }}
-                          >
-                            <SimpleGrid columns={1} gap={4}>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
-                                <Text fontWeight="bold">
-                                  {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
-                                </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
-                                <Text fontWeight="bold">
-                                  {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
-                                </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
-                                <Text fontWeight="bold">
-                                  {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
-                                </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
-                                <Text fontWeight="bold">
-                                  {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
-                                </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
-                                <Text 
-                                  fontWeight="bold" 
-                                  color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                                >
-                                  {Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0).toLocaleString()}원
-                                </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
-                                <Text 
-                                  fontWeight="bold" 
-                                  color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                                >
-                                  {(() => {
-                                    const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
-                                    const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
-                                    if (pchsAmt === 0) return '0.00';
-                                    return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
-                                  })()}%
-                                </Text>
-                              </Box>
-                            </SimpleGrid>
-                          </Box>
-                          
-                          <Box 
-                            mt={2}
-                            borderRadius="xl"
-                            border="2px solid var(--chakra-colors-gray-200)"
-                            backgroundColor="var(--chakra-colors-chakra-bg)"
-                            _dark={{
-                              borderColor: "var(--chakra-colors-gray-600)"
-                            }}
-                          >
-                            <PerformanceChart accountId={item.name} />
-                          </Box>
-                        </>
-                      )}
-                    </>
-                  )}
-                  <Box 
-                    mt={2}
-                    borderRadius="xl" 
-                    border="2px solid var(--chakra-colors-gray-200)"
-                    overflow="hidden"
-                    _dark={{
-                      borderColor: "var(--chakra-colors-gray-600)"
-                    }}
-                  >
-                    <Text px={6} py={2} fontWeight="bold" borderBottom="1px solid var(--chakra-colors-gray-200)" _dark={{ borderColor: "var(--chakra-colors-gray-600)" }}>
-                      보유종목
-                    </Text>
-                    {item.holdings && item.holdings.length > 0 ? (
-                      <>
-                        {(selectedPortfolio === item.name ? item.holdings : item.holdings.slice(0, 3)).map((holding, idx) => (
-                          <StockHolding key={idx} {...holding} />
-                        ))}
-                        {!selectedPortfolio && item.holdings.length > 3 && (
-                          <Text px={8} py={2} textAlign="left" fontSize="sm" color="gray.500">
-                            외 {item.holdings.length - 3}종목 더보기
-                          </Text>
-                        )}
-                      </>
-                    ) : (
-                      <Text p={4} textAlign="center" fontSize="sm" color="gray.500">
-                        보유 중인 종목이 없습니다.
-                      </Text>
-                    )}
+            selectedPortfolio === item.name && (
+              <Box key={index}>
+                {isLoading ? (
+                  <Box p={4} display="flex" justifyContent="center">
+                    <Spinner />
                   </Box>
-                </>
-              )}
-            </Box>
+                ) : balanceInfo && (
+                  <Flex direction="column" gap={6}>
+                    {/* 상단: 잔고와 차트 */}
+                    <SimpleGrid columns={{ base: 1, xl: 2 }} gap={6}>
+                      {/* 잔고 정보 */}
+                      <Box 
+                        p={6}
+                        borderRadius="xl"
+                        border="2px solid var(--chakra-colors-gray-200)"
+                        backgroundColor="var(--chakra-colors-chakra-bg)"
+                        _dark={{
+                          borderColor: "var(--chakra-colors-gray-600)"
+                        }}
+                      >
+                        <SimpleGrid columns={{ base: 1, sm: 2, xl: 2 }} gap={6}>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
+                            <Text fontSize="xl" fontWeight="bold">
+                              {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
+                            <Text fontSize="xl" fontWeight="bold">
+                              {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
+                            <Text fontSize="xl" fontWeight="bold">
+                              {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
+                            <Text fontSize="xl" fontWeight="bold">
+                              {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
+                            <Text 
+                              fontSize="xl"
+                              fontWeight="bold" 
+                              color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
+                            >
+                              {Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0).toLocaleString()}원
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
+                            <Text 
+                              fontSize="xl"
+                              fontWeight="bold" 
+                              color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
+                            >
+                              {(() => {
+                                const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
+                                const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
+                                if (pchsAmt === 0) return '0.00';
+                                return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
+                              })()}%
+                            </Text>
+                          </Box>
+                        </SimpleGrid>
+                      </Box>
+
+                      {/* 차트 */}
+                      <Box 
+                        p={6}
+                        borderRadius="xl"
+                        border="2px solid var(--chakra-colors-gray-200)"
+                        backgroundColor="var(--chakra-colors-chakra-bg)"
+                        _dark={{
+                          borderColor: "var(--chakra-colors-gray-600)"
+                        }}
+                        height="400px"
+                      >
+                        <PerformanceChart accountId={item.name} />
+                      </Box>
+                    </SimpleGrid>
+
+                    {/* 하단: 보유종목 */}
+                    <Box 
+                      borderRadius="xl" 
+                      border="2px solid var(--chakra-colors-gray-200)"
+                      overflow="hidden"
+                      _dark={{
+                        borderColor: "var(--chakra-colors-gray-600)"
+                      }}
+                    >
+                      <Text px={6} py={3} fontSize="lg" fontWeight="bold" borderBottom="1px solid var(--chakra-colors-gray-200)" _dark={{ borderColor: "var(--chakra-colors-gray-600)" }}>
+                        보유종목
+                      </Text>
+                      {item.holdings && item.holdings.length > 0 ? (
+                        <>
+                          {item.holdings.map((holding, idx) => (
+                            <StockHolding key={idx} {...holding} />
+                          ))}
+                        </>
+                      ) : (
+                        <Text p={6} textAlign="center" fontSize="sm" color="gray.500">
+                          보유 중인 종목이 없습니다.
+                        </Text>
+                      )}
+                    </Box>
+                  </Flex>
+                )}
+              </Box>
+            )
           ))}
-        </SimpleGrid>
+        </Flex>
       </Box>
     </Container>
   )
