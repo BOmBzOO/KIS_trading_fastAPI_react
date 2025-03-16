@@ -442,19 +442,16 @@ class DailyTradeResponse(BaseModel):
 def process_trade_data(response_data: dict) -> list[DailyTrade]:
     trades = []
     output1 = response_data.get("output1", [])
-    output2 = response_data.get("output2", [])
+    output2 = response_data.get("output2", {})
 
     # output2의 합산 정보를 저장
-    summary_data = {}
-    if output2:
-        summary = output2[0]  # output2는 항상 하나의 요약 데이터만 포함
-        summary_data = {
-            "total_order_qty_sum": int(summary.get("tot_ord_qty", 0)),
-            "total_trade_qty_sum": int(summary.get("tot_ccld_qty", 0)),
-            "total_trade_amt_sum": float(summary.get("tot_ccld_amt", 0)),
-            "estimated_tax_amt": float(summary.get("prsm_tlex_amt", 0)),
-            "avg_trade_price": float(summary.get("pchs_avg_pric", 0))
-        }
+    summary_data = {
+        "total_order_qty_sum": int(output2.get("tot_ord_qty", 0)),
+        "total_trade_qty_sum": int(output2.get("tot_ccld_qty", 0)),
+        "total_trade_amt_sum": float(output2.get("tot_ccld_amt", 0)),
+        "estimated_tax_amt": float(output2.get("prsm_tlex_smtl", 0)),
+        "avg_trade_price": float(output2.get("pchs_avg_pric", 0))
+    }
 
     # output1의 개별 거래 데이터 처리
     for trade in output1:
@@ -462,15 +459,14 @@ def process_trade_data(response_data: dict) -> list[DailyTrade]:
             order_date=trade["ord_dt"],
             stock_code=trade["pdno"],
             stock_name=trade["prdt_name"],
-            order_no=trade["ord_no"],
+            order_no=trade["odno"],
             order_time=trade["ord_tmd"],
             order_type=trade["sll_buy_dvsn_cd"],
             order_price=float(trade["ord_unpr"]),
             order_qty=int(trade["ord_qty"]),
-            trade_price=float(trade.get("ccld_unpr", 0)),
-            trade_qty=int(trade.get("ccld_qty", 0)),
-            trade_amount=float(trade.get("ccld_amt", 0)),
-            trade_time=trade.get("ccld_tmd"),
+            trade_price=float(trade.get("avg_prvs", 0)),
+            trade_qty=int(trade.get("tot_ccld_qty", 0)),
+            trade_amount=float(trade.get("tot_ccld_amt", 0)),
             total_trade_qty=int(trade.get("tot_ccld_qty", 0)),
             remaining_qty=int(trade.get("rmn_qty", 0)),
             cancel_qty=int(trade.get("cncl_cfrm_qty", 0)),
