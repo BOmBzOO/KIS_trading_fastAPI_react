@@ -1,5 +1,5 @@
 import React from "react"
-import { Container, Spinner, Flex, Button, Text, VStack, StackProps } from "@chakra-ui/react"
+import { Container, Spinner, Flex, Button, Text } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { FaWallet, FaChartLine, FaTrophy, FaSync } from "react-icons/fa"
 import { useQuery } from "@tanstack/react-query"

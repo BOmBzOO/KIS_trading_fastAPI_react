@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import TIMESTAMP, Column
+from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint
 
 
 # Shared properties
@@ -127,6 +127,48 @@ class AccountUpdate(SQLModel):
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = None
 
+class DailyTradeBase(SQLModel):
+    order_date: str = Field(max_length=8, description="주문일자 (YYYYMMDD)")
+    stock_code: str = Field(max_length=10, description="종목코드")
+    stock_name: str = Field(max_length=50, description="종목명")
+    order_no: str = Field(max_length=10, description="주문번호")
+    order_time: str = Field(max_length=6, description="주문시각 (HHMMSS)")
+    order_type: str = Field(max_length=2, description="매매구분코드 (01:매도, 02:매수)")
+    order_price: float = Field(description="주문단가")
+    order_qty: int = Field(description="주문수량")
+    trade_price: float = Field(default=0, description="체결단가")
+    trade_qty: int = Field(default=0, description="체결수량")
+    trade_amount: float = Field(default=0, description="체결금액")
+    trade_time: str | None = Field(default=None, max_length=6, description="체결시각")
+    total_trade_qty: int = Field(default=0, description="총체결수량")
+    remaining_qty: int = Field(default=0, description="주문잔량")
+    cancel_qty: int = Field(default=0, description="취소수량")
+
+class DailyTrade(DailyTradeBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    account_id: uuid.UUID = Field(foreign_key="account.id", nullable=False)
+    account: "Account" = Relationship(back_populates="daily_trades")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column(TIMESTAMP(timezone=False))
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column(
+            TIMESTAMP(timezone=False),
+            onupdate=datetime.utcnow
+        )
+    )
+
+    class Config:
+        table_name = "daily_trades"
+
+    __table_args__ = (
+        UniqueConstraint('account_id', 'order_date', 'order_no', name='uix_account_order'),
+        Index('ix_daily_trades_account_date', 'account_id', 'order_date'),
+        Index('ix_daily_trades_stock', 'account_id', 'stock_code'),
+    )
+
 # Database model
 class Account(AccountBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -135,6 +177,7 @@ class Account(AccountBase, table=True):
     owner_name: str | None = None
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
+    daily_trades: list["DailyTrade"] = Relationship(back_populates="account", cascade_delete=True)
 
     def __init__(self, **data):
         super().__init__(**data)

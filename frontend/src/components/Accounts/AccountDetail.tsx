@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Flex, SimpleGrid, Text, Spinner } from '@chakra-ui/react'
 import { PerformanceChart } from '@/components/PerformanceChart'
 import { BalanceInfo } from './BalanceInfo'

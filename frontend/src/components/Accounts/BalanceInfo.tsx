@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, SimpleGrid, Text } from '@chakra-ui/react'
 
 interface BalanceInfoProps {

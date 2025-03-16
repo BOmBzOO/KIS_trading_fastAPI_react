@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Text, Badge, HStack, Stack, Button, Flex } from '@chakra-ui/react'
 import { useColorModeValue } from '@/components/ui/color-mode'
 import { FaSync } from 'react-icons/fa'

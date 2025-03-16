@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, List
 import requests
 from datetime import datetime, timedelta
 import asyncio
@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Account, AccountCreate, AccountPublic, AccountsPublic, AccountUpdate, Message
+from app.models import Account, AccountCreate, AccountPublic, AccountsPublic, AccountUpdate, Message, DailyTrade, DailyTradeBase
 from app.core.config import settings
 from app.core.db import engine, get_session
 
@@ -428,4 +428,269 @@ def refresh_account_token(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to refresh token: {str(e)}"
+        )
+
+class DailyTradeResponse(BaseModel):
+    """일별 주문체결 조회 응답 모델"""
+    message: str
+    updated_count: int
+    start_date: str
+    end_date: str
+    error_count: int = 0
+    errors: List[str] = []
+
+def process_trade_data(trade: dict) -> dict:
+    """API 응답 데이터를 DB 모델에 맞게 변환"""
+    try:
+        # 숫자 데이터 변환 시 None, 빈 문자열 등 처리
+        def safe_float(value: str | None) -> float:
+            if not value or value.strip() == "":
+                return 0.0
+            return float(value)
+
+        def safe_int(value: str | None) -> int:
+            if not value or value.strip() == "":
+                return 0
+            return int(value)
+
+        order_qty = safe_int(trade.get("ord_qty"))
+        total_trade_qty = safe_int(trade.get("tot_ccld_qty"))
+
+        return {
+            "order_date": trade.get("ord_dt", ""),
+            "stock_code": trade.get("pdno", ""),
+            "stock_name": trade.get("prdt_name", ""),
+            "order_no": trade.get("odno", ""),
+            "order_time": trade.get("ord_tmd", ""),
+            "order_type": trade.get("sll_buy_dvsn_cd", ""),
+            "order_price": safe_float(trade.get("ord_unpr")),
+            "order_qty": order_qty,
+            "trade_price": safe_float(trade.get("avg_prvs")),
+            "trade_qty": total_trade_qty,
+            "trade_amount": safe_float(trade.get("tot_ccld_amt")),
+            "trade_time": trade.get("ccld_time", ""),
+            "total_trade_qty": total_trade_qty,
+            "remaining_qty": max(0, order_qty - total_trade_qty),
+            "cancel_qty": safe_int(trade.get("cncl_qty"))
+        }
+    except Exception as e:
+        print(f"데이터 변환 중 오류 발생: {str(e)}")
+        print(f"원본 데이터: {trade}")
+        raise ValueError(f"거래 데이터 변환 실패: {str(e)}")
+
+@router.post("/{account_id}/update-daily-trades", response_model=DailyTradeResponse)
+async def update_daily_trades(
+    account_id: uuid.UUID,
+    start_date: str | None = None,  # YYYY-MM-DD
+    end_date: str | None = None,    # YYYY-MM-DD
+    background_tasks: BackgroundTasks = None,
+    session: SessionDep = None,
+    current_user: CurrentUser = None,
+) -> Any:
+    """특정 계좌의 일별 주문체결 내역을 조회하여 DB에 업데이트"""
+    errors = []
+    updated_count = 0
+
+    try:
+        # 1. 날짜 범위 설정
+        if not end_date:
+            end_date = datetime.now().strftime("%Y-%m-%d")
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+        print(f"조회 기간: {start_date} ~ {end_date}")  # 디버깅용
+
+        # 2. 계좌 정보 조회 및 권한 확인
+        account = session.get(Account, account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        if not current_user.is_superuser and (account.owner_id != current_user.id):
+            raise HTTPException(status_code=400, detail="Not enough permissions")
+
+        # 3. 토큰 상태 확인 및 갱신
+        if account.is_active:
+            refresh_token_if_needed(account)
+            session.commit()
+
+        # 4. KIS API 호출
+        trade_data = await fetch_daily_trades(account, start_date, end_date)
+        print(f"API 응답 전체: {trade_data}")  # 디버깅용
+        
+        if not trade_data.get("output1"):
+            print(f"API 응답에 거래 내역이 없음: {trade_data}")  # 디버깅용
+            return DailyTradeResponse(
+                message="조회된 거래 내역이 없습니다.",
+                updated_count=0,
+                start_date=start_date,
+                end_date=end_date,
+                error_count=0,
+                errors=[]
+            )
+
+        # 5. DB 업데이트
+        from sqlmodel import select
+        
+        try:
+            for trade in trade_data.get("output1", []):
+                try:
+                    # 거래 데이터 변환
+                    trade_dict = process_trade_data(trade)
+                    trade_dict["account_id"] = account_id
+
+                    print(f"처리할 거래 데이터: {trade_dict}")  # 디버깅용
+
+                    # 기존 거래 확인
+                    statement = select(DailyTrade).where(
+                        DailyTrade.account_id == account_id,
+                        DailyTrade.order_date == trade_dict["order_date"],
+                        DailyTrade.order_no == trade_dict["order_no"]
+                    )
+                    existing_trade = session.exec(statement).first()
+
+                    if existing_trade:
+                        # 기존 거래 업데이트
+                        for key, value in trade_dict.items():
+                            setattr(existing_trade, key, value)
+                        print(f"기존 거래 업데이트: {trade_dict['order_no']}")  # 디버깅용
+                    else:
+                        # 새 거래 추가
+                        new_trade = DailyTrade(**trade_dict)
+                        session.add(new_trade)
+                        print(f"새 거래 추가: {trade_dict['order_no']}")  # 디버깅용
+
+                    updated_count += 1
+
+                except Exception as e:
+                    error_msg = f"거래 데이터 처리 실패 (주문번호: {trade.get('odno')}): {str(e)}"
+                    print(f"에러: {error_msg}")  # 디버깅용
+                    errors.append(error_msg)
+                    continue
+
+            # 모든 거래 처리가 완료되면 커밋
+            session.commit()
+            print(f"전체 거래 저장 성공: {updated_count}건")  # 디버깅용
+
+        except Exception as e:
+            # 오류 발생 시 롤백
+            session.rollback()
+            error_msg = f"데이터베이스 저장 실패: {str(e)}"
+            print(f"에러: {error_msg}")  # 디버깅용
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        return DailyTradeResponse(
+            message=f"일별 주문체결 내역이 업데이트되었습니다. (총 {updated_count}건)",
+            updated_count=updated_count,
+            start_date=start_date,
+            end_date=end_date,
+            error_count=len(errors),
+            errors=errors
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        error_msg = f"데이터 업데이트 실패: {str(e)}"
+        print(f"예외 발생: {error_msg}")  # 디버깅용
+        raise HTTPException(
+            status_code=500,
+            detail=error_msg
+        )
+
+@router.get("/{account_id}/daily-trades", response_model=List[DailyTradeBase])
+async def get_daily_trades(
+    account_id: uuid.UUID,
+    start_date: str,
+    end_date: str | None = None,
+    stock_code: str | None = None,
+    session: SessionDep = None,
+    current_user: CurrentUser = None,
+) -> Any:
+    """특정 계좌의 일별 주문체결 내역을 조회"""
+    # 권한 확인
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not current_user.is_superuser and (account.owner_id != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    # 쿼리 생성
+    query = session.query(DailyTrade).filter(
+        DailyTrade.account_id == account_id,
+        DailyTrade.order_date >= start_date.replace("-", "")
+    )
+
+    if end_date:
+        query = query.filter(DailyTrade.order_date <= end_date.replace("-", ""))
+    if stock_code:
+        query = query.filter(DailyTrade.stock_code == stock_code)
+
+    # 정렬 및 실행
+    trades = query.order_by(DailyTrade.order_date.desc(), DailyTrade.order_time.desc()).all()
+    return trades
+
+async def fetch_daily_trades(
+    account: Account,
+    start_date: str,
+    end_date: str
+) -> dict:
+    """KIS API를 통해 일별 주문체결 내역을 조회"""
+    base_url = "https://openapi.koreainvestment.com:9443" if account.acnt_type == "live" else "https://openapivts.koreainvestment.com:29443"
+    
+    params = {
+        "CANO": account.cano,  # 종합계좌번호
+        "ACNT_PRDT_CD": account.acnt_prdt_cd,  # 계좌상품코드
+        "INQR_STRT_DT": start_date.replace("-", ""),  # 조회시작일자
+        "INQR_END_DT": end_date.replace("-", ""),  # 조회종료일자
+        "SLL_BUY_DVSN_CD": "00",  # 매도매수구분코드 - 00:전체, 01:매도, 02:매수
+        "INQR_DVSN": "00",  # 조회구분 - 00:전체, 01:체결, 02:미체결
+        "PDNO": "",  # 상품번호(종목코드), 공백:전체
+        "CCLD_DVSN": "00",  # 체결구분 - 00:전체, 01:체결, 02:미체결
+        "ORD_GNO_BRNO": "",  # 주문채번지점번호
+        "ODNO": "",  # 주문번호
+        "INQR_DVSN_3": "00",  # 조회구분3 - 00:전체, 01:현금, 02:신용, 03:선물대용
+        "INQR_DVSN_1": "",  # 조회구분1
+        "INQR_DVSN_2": "",  # 조회구분2
+        "CTX_AREA_FK100": "",  # 연속조회검색조건100
+        "CTX_AREA_NK100": ""   # 연속조회키100
+    }
+    
+    headers = {
+        "authorization": f"Bearer {account.kis_access_token}",
+        "appkey": account.app_key,
+        "appsecret": account.app_secret,
+        "tr_id": "TTTC8001R" if account.acnt_type == "live" else "VTTC8001R",
+        "content-type": "application/json"
+    }
+    
+    try:
+        print(f"API Request - URL: {base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld")  # 디버깅용
+        print(f"API Request - Params: {params}")  # 디버깅용
+        print(f"API Request - Headers: {headers}")  # 디버깅용
+        
+        response = requests.get(
+            f"{base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+            params=params,
+            headers=headers
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        print(f"API Response - Status Code: {response.status_code}")  # 디버깅용
+        print(f"API Response - Headers: {response.headers}")  # 디버깅용
+        print(f"API Response - Data: {data}")  # 디버깅용
+        
+        # API 응답 검증
+        if data.get("rt_cd") != "0":
+            raise HTTPException(
+                status_code=400,
+                detail=f"KIS API 오류: {data.get('msg1', '알 수 없는 오류')}"
+            )
+            
+        return data
+        
+    except requests.RequestException as e:
+        print(f"API Request Error: {str(e)}")  # 디버깅용
+        raise HTTPException(
+            status_code=500,
+            detail=f"KIS API 호출 실패: {str(e)}"
         )

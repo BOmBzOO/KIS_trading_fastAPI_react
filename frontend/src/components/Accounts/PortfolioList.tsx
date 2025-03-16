@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Heading, Flex } from '@chakra-ui/react'
 import { PortfolioCard } from './PortfolioCard'
 import { PortfolioItem } from '@/types/portfolio'
