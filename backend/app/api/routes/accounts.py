@@ -390,3 +390,42 @@ def get_account_balance(
             status_code=500,
             detail=f"KIS API 잔고 조회 실패: {str(e)}"
         )
+
+@router.post("/{account_id}/token_refresh", response_model=AccountPublic)
+def refresh_account_token(
+    session: SessionDep,
+    current_user: CurrentUser,
+    account_id: uuid.UUID
+) -> Any:
+    """
+    Manually refresh KIS API access token for a specific account.
+    """
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not current_user.is_superuser and (account.owner_id != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    if not account.is_active:
+        raise HTTPException(status_code=400, detail="Account is not active")
+
+    try:
+        access_token, expires_at = get_kis_access_token(
+            app_key=account.app_key,
+            app_secret=account.app_secret,
+            acnt_type=account.acnt_type
+        )
+        
+        account.kis_access_token = access_token
+        account.access_token_expired = expires_at
+        
+        session.add(account)
+        session.commit()
+        session.refresh(account)
+        
+        return account
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to refresh token: {str(e)}"
+        )

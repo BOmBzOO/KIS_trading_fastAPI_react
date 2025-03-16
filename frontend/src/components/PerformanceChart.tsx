@@ -13,10 +13,9 @@ import {
   Button,
   Text,
   Flex,
-  IconButton,
-  Spinner
+  ButtonGroup
 } from '@chakra-ui/react';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FaSync } from 'react-icons/fa';
 
 // 가상 데이터 생성 함수
 const generateMockData = (days: number) => {
@@ -30,12 +29,27 @@ const generateMockData = (days: number) => {
     value += (Math.random() - 0.5) * 2; // -1 ~ 1 사이의 변동
     
     data.push({
-      date: date.toLocaleDateString(),
+      date: formatDate(date, days),
       value: parseFloat(value.toFixed(2))
     });
   }
   
   return data;
+};
+
+// 날짜 포맷 함수
+const formatDate = (date: Date, totalDays: number) => {
+  if (totalDays <= 7) {
+    // 일별: "12/31" 형식
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  } else if (totalDays <= 31) {
+    // 주별: "12월 4주" 형식
+    const week = Math.ceil(date.getDate() / 7);
+    return `${date.getMonth() + 1}월 ${week}주`;
+  } else {
+    // 월별: "2023/12" 형식
+    return `${date.getFullYear()}/${date.getMonth() + 1}`;
+  }
 };
 
 type Period = 'daily' | 'weekly' | 'monthly';
@@ -93,7 +107,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 실제 API 연동 시 여기서 데이터를 가져옵니다
+      // 실제 API 연동 시 accountId를 사용하여 해당 계좌의 데이터를 가져옵니다
+      console.log(`Fetching data for account: ${accountId}`);
       const newData = {
         daily: generateMockData(7),
         weekly: generateMockData(12),
@@ -105,51 +120,46 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountId]);
 
   const getData = () => chartData[period];
   
   return (
-    <Box h="400px" w="100%" p={4}>
+    <Box h="400px" w="100%" p={1}>
       <Flex mb={4} justify="space-between" align="center">
-        <Box display="flex">
+        <Button
+          onClick={refreshData}
+          size="sm"
+          loading={isLoading}
+          colorScheme="gray"
+          variant="ghost"
+        >
+          <Flex align="center" gap={2}>
+            <FaSync />
+            <Text>새로고침</Text>
+          </Flex>
+        </Button>
+        
+        <ButtonGroup size="sm" variant="solid" attached>
           <Button
-            borderRadius="md"
-            borderRightRadius={0}
             onClick={() => setPeriod('daily')}
             colorScheme={period === 'daily' ? 'blue' : 'gray'}
-            size="sm"
           >
             일별
           </Button>
           <Button
-            borderRadius={0}
-            borderLeftWidth={0}
-            borderRightWidth={0}
             onClick={() => setPeriod('weekly')}
             colorScheme={period === 'weekly' ? 'blue' : 'gray'}
-            size="sm"
           >
             주별
           </Button>
           <Button
-            borderRadius="md"
-            borderLeftRadius={0}
             onClick={() => setPeriod('monthly')}
             colorScheme={period === 'monthly' ? 'blue' : 'gray'}
-            size="sm"
           >
             월별
           </Button>
-        </Box>
-        <Button
-          onClick={refreshData}
-          size="sm"
-          disabled={isLoading}
-          variant="ghost"
-        >
-          {isLoading ? <Spinner size="sm" /> : '새로고침'}
-        </Button>
+        </ButtonGroup>
       </Flex>
       
       <ResponsiveContainer width="100%" height={300}>
@@ -166,6 +176,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
             tick={{ fontSize: 12, fill: textColor }}
             tickLine={{ stroke: gridColor }}
             axisLine={{ stroke: gridColor }}
+            interval="preserveStartEnd"
           />
           <YAxis
             tick={{ fontSize: 12, fill: textColor }}

@@ -1,168 +1,79 @@
-import React, { useEffect } from "react"
-import { 
-  Box, 
-  Container, 
-  Text, 
-  Heading, 
-  SimpleGrid, 
-  Flex, 
-  Icon,
-  HStack,
-  Badge,
-  Spinner
-} from "@chakra-ui/react"
+import React from "react"
+import { Container, Spinner, Flex, Button, Text, VStack, StackProps } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
-import { FaWallet, FaChartLine, FaTrophy } from "react-icons/fa"
+import { FaWallet, FaChartLine, FaTrophy, FaSync } from "react-icons/fa"
 import { useQuery } from "@tanstack/react-query"
 
 import { AccountsService } from "@/client"
 import useAuth from "@/hooks/useAuth"
-import { PerformanceChart } from "@/components/PerformanceChart"
+import { DashboardHeader } from "@/components/Dashboard/DashboardHeader"
+import { PortfolioList } from "@/components/Accounts/PortfolioList"
+import { AccountDetail } from "@/components/Accounts/AccountDetail"
+import { PortfolioItem } from "@/types/portfolio"
+
+// 임시 데이터 정의
+const MOCK_BALANCE_DATA = {
+  output1: [
+    {
+      prdt_name: "삼성전자",
+      pdno: "005930",
+      evlu_pfls_rt: 15.23,
+      hldg_qty: 100,
+      pchs_avg_pric: 60000,
+      prpr: 69000,
+      evlu_pfls_amt: 900000,
+      pchs_amt: 6000000,
+      evlu_amt: 6900000,
+    },
+    {
+      prdt_name: "NAVER",
+      pdno: "035420",
+      evlu_pfls_rt: -5.32,
+      hldg_qty: 50,
+      pchs_avg_pric: 200000,
+      prpr: 189360,
+      evlu_pfls_amt: -532000,
+      pchs_amt: 10000000,
+      evlu_amt: 9468000,
+    },
+  ],
+  output2: [{
+    tot_evlu_amt: 16368000,
+    pchs_amt_smtl_amt: 16000000,
+    evlu_pfls_smtl_amt: 368000,
+    asst_icdc_erng_rt: 2.3,
+    asst_icdc_erng_rt_1: 0.5,
+  }],
+}
+
+const MOCK_PORTFOLIO_DATA: PortfolioItem[] = [
+  {
+    name: "주식계좌1",
+    tags: ["활성", "실전매매"],
+    returnRate: "2.3%",
+    accountId: "mock1",
+    accessTokenExpired: true,
+    tokenExpiryTime: "2024-03-20 15:00:00",
+    holdings: [
+      {
+        name: "삼성전자",
+        code: "005930",
+        returnRate: "15.23%",
+        trend: "up" as const
+      },
+      {
+        name: "NAVER",
+        code: "035420",
+        returnRate: "-5.32%",
+        trend: "down" as const
+      }
+    ]
+  }
+]
 
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
 })
-
-interface SummaryCardProps {
-  title: string
-  value: string
-  subtitle?: string
-  icon?: React.ElementType
-}
-
-const SummaryCard = ({ title, value, subtitle, icon }: SummaryCardProps) => (
-  <Box 
-    py={4}
-    px={6}
-    borderRadius="xl" 
-    border="2px solid var(--chakra-colors-gray-200)"
-    backgroundColor="var(--chakra-colors-chakra-bg)"
-    _dark={{
-      borderColor: "var(--chakra-colors-gray-600)"
-    }}
-    transition="all 0.2s"
-    _hover={{
-      transform: "translateY(-2px)",
-      boxShadow: "lg"
-    }}
-  >
-    <Flex alignItems="center" mb={3}>
-      {icon && <Icon as={icon} boxSize={5} color="blue.500" mr={2} />}
-      <Text fontSize="sm" color="gray.500" fontWeight="medium" _dark={{ color: "gray.400" }}>{title}</Text>
-    </Flex>
-    <Text fontSize="2xl" fontWeight="bold" mb={1} _dark={{ color: "white" }}>{value}</Text>
-    {subtitle && <Text fontSize="sm" color="gray.500" _dark={{ color: "gray.400" }}>{subtitle}</Text>}
-  </Box>
-)
-
-interface PortfolioCardProps {
-  name: string
-  tags: string[]
-  returnRate: string
-  status?: string
-  isSelected?: boolean
-  onClick?: () => void
-}
-
-const PortfolioCard = ({ name, tags, returnRate, status, isSelected, onClick }: PortfolioCardProps) => (
-  <Box 
-    py={4}
-    px={6}
-    borderRadius="xl" 
-    border="2px solid var(--chakra-colors-gray-200)"
-    backgroundColor={isSelected ? "var(--chakra-colors-blue-50)" : "var(--chakra-colors-chakra-bg)"}
-    cursor="pointer"
-    onClick={onClick}
-    transition="all 0.2s"
-    _dark={{
-      borderColor: "var(--chakra-colors-gray-600)",
-      backgroundColor: isSelected ? "var(--chakra-colors-blue-900)" : "var(--chakra-colors-chakra-bg)"
-    }}
-    _hover={{
-      transform: "translateY(2px)",
-      boxShadow: "lg",
-      borderColor: "var(--chakra-colors-blue-500)"
-    }}
-  >
-    <Text fontSize="lg" fontWeight="bold" mb={3} _dark={{ color: "white" }}>{name}</Text>
-    <HStack gap={2} mb={4} flexWrap="wrap">
-      {tags.map((tag, index) => (
-        <Badge key={index} variant="subtle" colorScheme="gray" fontSize="xs">
-          {tag}
-        </Badge>
-      ))}
-    </HStack>
-    <Flex justify="space-between" align="center">
-      {status && <Text fontSize="sm" color="gray.500" _dark={{ color: "gray.400" }}>{status}</Text>}
-      <Text fontSize="2xl" fontWeight="bold" color="red.500">{returnRate}</Text>
-    </Flex>
-  </Box>
-)
-
-interface StockHoldingProps {
-  name: string
-  code: string
-  returnRate: string
-  trend: "up" | "down"
-}
-
-const StockHolding = ({ name, code, returnRate, trend }: StockHoldingProps) => (
-  <Flex 
-    justify="space-between" 
-    align="center" 
-    py={2}
-    px={6}
-    borderBottom="1px solid var(--chakra-colors-gray-200)"
-    _dark={{
-      borderColor: "var(--chakra-colors-gray-600)"
-    }}
-  >
-    <Flex align="center" gap={2} flex={1} minWidth={0}>
-      <Text 
-        fontWeight="medium"
-        color="var(--chakra-colors-gray-700)"
-        _dark={{
-          color: "var(--chakra-colors-gray-100)"
-        }}
-        maxWidth="140px"
-        overflow="hidden"
-        textOverflow="ellipsis"
-        whiteSpace="nowrap"
-      >
-        - {name}
-      </Text>
-      <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} flexShrink={0}>{code}</Text>
-    </Flex>
-    <Text 
-      fontWeight="medium" 
-      color={trend === "up" ? "red.500" : "blue.500"}
-      flexShrink={0}
-    >
-      {returnRate}
-    </Text>
-  </Flex>
-)
-
-interface PortfolioItem {
-  name: string
-  tags: string[]
-  returnRate: string
-  status?: string
-  totalAssets?: string
-  availableCash?: string
-  depositBalance?: string
-  d2DepositBalance?: string
-  evaluationAmount?: string
-  purchaseAmount?: string
-  evaluationProfitLoss?: string
-  profitLossRate?: string
-  holdings?: Array<{
-    name: string
-    code: string
-    returnRate: string
-    trend: "up" | "down"
-  }>
-}
 
 function Dashboard() {
   const { user } = useAuth()
@@ -176,8 +87,10 @@ function Dashboard() {
   const [selectedPortfolio, setSelectedPortfolio] = React.useState<string | null>(null)
   const [balanceInfo, setBalanceInfo] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(false)
+  const [tokenExpired, setTokenExpired] = React.useState(false)
+  const [tokenExpiryTime, setTokenExpiryTime] = React.useState<string | null>(null)
 
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
+  const { data: accounts, isLoading: accountsLoading, refetch: refetchAccounts } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => AccountsService.readAccounts(),
   })
@@ -185,27 +98,18 @@ function Dashboard() {
   const fetchBalance = async (account: any) => {
     setIsLoading(true)
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/accounts/${account.id}/balance`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Response status:', response.status)
-        console.error('Response text:', errorText)
-        throw new Error(`잔고 조회 실패 (${response.status}): ${errorText}`)
-      }
-      const data = await response.json()
-      console.log('Balance data:', data)
+      const data = await AccountsService.getBalance(account.id)
       setBalanceInfo(data)
+      setTokenExpired(false)
+      setTokenExpiryTime(null)
     } catch (error) {
       console.error('잔고 조회중 오류 발생:', error)
-      if (error instanceof Error) {
+      if (error instanceof Error && 
+          (error.message.includes('token') || error.message.includes('Internal Server Error'))) {
+        setTokenExpired(true)
+        setTokenExpiryTime(MOCK_PORTFOLIO_DATA[0].tokenExpiryTime ?? "알 수 없음")
+        setBalanceInfo(MOCK_BALANCE_DATA)
+      } else if (error instanceof Error) {
         alert(`잔고 조회중 오류가 발생했습니다: ${error.message}`)
       }
     } finally {
@@ -213,7 +117,7 @@ function Dashboard() {
     }
   }
 
-  const handlePortfolioClick = async (portfolio: any) => {
+  const handlePortfolioClick = async (portfolio: PortfolioItem) => {
     setSelectedPortfolio(portfolio.name)
     const account = accounts?.data?.find(acc => acc.acnt_name === portfolio.name)
     if (account) {
@@ -221,25 +125,72 @@ function Dashboard() {
     }
   }
 
-  useEffect(() => {
+  const refreshToken = async (accountId: string) => {
+    try {
+      const updatedAccount = await AccountsService.refreshToken(accountId)
+      await refetchAccounts()
+      setTokenExpired(false)
+      setTokenExpiryTime(null)
+      
+      if (selectedPortfolio === updatedAccount.acnt_name) {
+        await fetchBalance(updatedAccount)
+      }
+    } catch (error) {
+      console.error('토큰 갱신 중 오류 발생:', error)
+      if (error instanceof Error) {
+        alert(`토큰 갱신 중 오류가 발생했습니다: ${error.message}`)
+      }
+    }
+  }
+
+  React.useEffect(() => {
     const fetchInitialData = async () => {
-      if (!accounts?.data) return
+      if (!accounts?.data) {
+        setPortfolioData(MOCK_PORTFOLIO_DATA)
+        setSummaryData([
+          { 
+            title: "총합", 
+            value: `${MOCK_BALANCE_DATA.output2[0].tot_evlu_amt.toLocaleString()}원`, 
+            subtitle: "임시 데이터", 
+            icon: FaWallet 
+          },
+          { 
+            title: "수익률(1개월)", 
+            value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt}%`, 
+            subtitle: "임시 데이터", 
+            icon: FaChartLine 
+          },
+          { 
+            title: "수익률(금일)", 
+            value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt_1}%`, 
+            subtitle: "임시 데이터", 
+            icon: FaTrophy 
+          },
+        ])
+        if (MOCK_PORTFOLIO_DATA.length > 0) {
+          setSelectedPortfolio(MOCK_PORTFOLIO_DATA[0].name)
+          setBalanceInfo(MOCK_BALANCE_DATA)
+          setTokenExpired(true)
+          setTokenExpiryTime(MOCK_PORTFOLIO_DATA[0].tokenExpiryTime ?? "알 수 없음")
+        }
+        return
+      }
 
       const balancePromises = accounts.data.map(async (account) => {
         try {
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/accounts/${account.id}/balance`,
-            {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                'Content-Type': 'application/json',
-              }
-            }
-          )
-          if (!response.ok) throw new Error('Balance fetch failed')
-          return { account, data: await response.json() }
+          const data = await AccountsService.getBalance(account.id)
+          return { account, data, error: null }
         } catch (error) {
           console.error(`Error fetching balance for account ${account.id}:`, error)
+          if (error instanceof Error && 
+              (error.message.includes('token') || error.message.includes('Internal Server Error'))) {
+            return { 
+              account, 
+              data: MOCK_BALANCE_DATA, 
+              error: 'token_expired',
+              tokenExpiryTime: MOCK_PORTFOLIO_DATA[0].tokenExpiryTime ?? "알 수 없음"
+            }
+          }
           return null
         }
       })
@@ -256,7 +207,7 @@ function Dashboard() {
       results.forEach(result => {
         if (!result) return
 
-        const { account, data: balance } = result
+        const { account, data: balance, error, tokenExpiryTime } = result
         const accountAssets = Number(balance.output2?.[0]?.tot_evlu_amt || 0)
         const monthlyReturn = Number(balance.output2?.[0]?.asst_icdc_erng_rt || 0)
         const dailyReturn = Number(balance.output2?.[0]?.asst_icdc_erng_rt_1 || 0)
@@ -275,10 +226,12 @@ function Dashboard() {
           tags: [
             account.is_active ? "활성" : "비활성",
             account.acnt_type === "paper" ? "가상매매" : "실전매매",
-            "트레이딩"
           ],
           returnRate: `${returnRate}%`,
           status: balance.output1?.length ? undefined : "",
+          accountId: account.id,
+          accessTokenExpired: error === 'token_expired',
+          tokenExpiryTime: tokenExpiryTime,
           holdings: balance.output1?.map((item: any) => ({
             name: item.prdt_name,
             code: item.pdno,
@@ -311,7 +264,6 @@ function Dashboard() {
 
       setPortfolioData(newPortfolioData)
 
-      // 첫 번째 계좌 자동 선택
       if (newPortfolioData.length > 0) {
         handlePortfolioClick(newPortfolioData[0])
       }
@@ -332,184 +284,60 @@ function Dashboard() {
 
   return (
     <Container maxW="full" p={{ base: 4, md: 6 }}>
-      <Box mb={8}>
-        <Flex 
-          justify="space-between" 
-          align="center" 
-          mb={6}
-          flexDirection={{ base: "column", md: "row" }}
-          gap={{ base: 2, md: 0 }}
-        >
-          <Heading size="lg">{user?.full_name || 'Guest'}님의 자산을 알려드립니다!💰</Heading>
-          <Text color="gray.500" fontSize={{ base: "sm", md: "md" }}>
-            최근 업데이트: {new Date().toLocaleString()}
-          </Text>
-        </Flex>
-        
-        <SimpleGrid columns={{ base: 1, md: 3 }} gap={{ base: 4, md: 6 }}>
-          {summaryData.map((item, index) => (
-            <SummaryCard key={index} {...item} />
-          ))}
-        </SimpleGrid>
-      </Box>
+      <DashboardHeader 
+        userName={user?.full_name || ''} 
+        summaryData={summaryData} 
+      />
 
-      <Box mb={8}>
-        <Text fontSize="xl" fontWeight="bold" mb={4}>포트폴리오</Text>
-        <Flex direction="column" gap={6}>
-          {/* 포트폴리오 카드 목록 - 가로 스크롤 */}
-          <Box 
-            overflowX="auto" 
-            pb={2}
-            css={{
-              '&::-webkit-scrollbar': {
-                height: '8px',
-                borderRadius: '8px',
-                backgroundColor: `var(--chakra-colors-gray-100)`,
-              },
-              '&::-webkit-scrollbar-thumb': {
-                borderRadius: '8px',
-                backgroundColor: `var(--chakra-colors-gray-300)`,
-              },
-            }}
-          >
-            <Flex gap={4} minW="min-content">
-              {portfolioData.map((item, index) => (
-                <Box 
-                  key={index}
-                  minW={{ base: "280px", md: "320px" }}
-                  w={{ base: "280px", md: "320px" }}
+      <PortfolioList 
+        portfolioData={portfolioData}
+        selectedPortfolio={selectedPortfolio}
+        onPortfolioClick={handlePortfolioClick}
+        onRefreshToken={refreshToken}
+      />
+
+      {portfolioData.map((item, index) => (
+        selectedPortfolio === item.name && (
+          <Flex key={index} direction="column" gap={4}>
+            {tokenExpired && (
+              <Flex 
+                bg="yellow.100" 
+                p={4} 
+                borderRadius="md" 
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <Flex direction="column" gap={1}>
+                  <Text color="yellow.800" fontWeight="bold">
+                    데이터를 불러올 수 없습니다
+                  </Text>
+                  <Text color="yellow.600" fontSize="sm">
+                    KIS 액세스 토큰이 만료되었거나 서버 오류가 발생했습니다
+                  </Text>
+                  <Text color="yellow.600" fontSize="sm">
+                    만료 시간: {tokenExpiryTime}
+                  </Text>
+                </Flex>
+                <Button
+                  colorScheme="yellow"
+                  onClick={() => refreshToken(item.accountId)}
+                  display="flex"
+                  alignItems="center"
+                  gap="2"
                 >
-                  <PortfolioCard 
-                    {...item} 
-                    isSelected={selectedPortfolio === item.name}
-                    onClick={() => handlePortfolioClick(item)}
-                  />
-                </Box>
-              ))}
-            </Flex>
-          </Box>
-
-          {/* 선택된 포트폴리오 상세 정보 */}
-          {portfolioData.map((item, index) => (
-            selectedPortfolio === item.name && (
-              <Box key={index}>
-                {isLoading ? (
-                  <Box p={4} display="flex" justifyContent="center">
-                    <Spinner />
-                  </Box>
-                ) : balanceInfo && (
-                  <Flex direction="column" gap={6}>
-                    {/* 상단: 잔고와 차트 */}
-                    <SimpleGrid columns={{ base: 1, xl: 2 }} gap={6}>
-                      {/* 잔고 정보 */}
-                      <Box 
-                        p={6}
-                        borderRadius="xl"
-                        border="2px solid var(--chakra-colors-gray-200)"
-                        backgroundColor="var(--chakra-colors-chakra-bg)"
-                        _dark={{
-                          borderColor: "var(--chakra-colors-gray-600)"
-                        }}
-                      >
-                        <SimpleGrid columns={{ base: 1, sm: 2, xl: 2 }} gap={6}>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
-                            <Text fontSize="xl" fontWeight="bold">
-                              {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
-                            <Text fontSize="xl" fontWeight="bold">
-                              {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
-                            <Text fontSize="xl" fontWeight="bold">
-                              {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
-                            <Text fontSize="xl" fontWeight="bold">
-                              {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
-                            <Text 
-                              fontSize="xl"
-                              fontWeight="bold" 
-                              color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                            >
-                              {Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0).toLocaleString()}원
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
-                            <Text 
-                              fontSize="xl"
-                              fontWeight="bold" 
-                              color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                            >
-                              {(() => {
-                                const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
-                                const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
-                                if (pchsAmt === 0) return '0.00';
-                                return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
-                              })()}%
-                            </Text>
-                          </Box>
-                        </SimpleGrid>
-                      </Box>
-
-                      {/* 차트 */}
-                      <Box 
-                        p={6}
-                        borderRadius="xl"
-                        border="2px solid var(--chakra-colors-gray-200)"
-                        backgroundColor="var(--chakra-colors-chakra-bg)"
-                        _dark={{
-                          borderColor: "var(--chakra-colors-gray-600)"
-                        }}
-                        height="400px"
-                      >
-                        <PerformanceChart accountId={item.name} />
-                      </Box>
-                    </SimpleGrid>
-
-                    {/* 하단: 보유종목 */}
-                    <Box 
-                      borderRadius="xl" 
-                      border="2px solid var(--chakra-colors-gray-200)"
-                      overflow="hidden"
-                      _dark={{
-                        borderColor: "var(--chakra-colors-gray-600)"
-                      }}
-                    >
-                      <Text px={6} py={3} fontSize="lg" fontWeight="bold" borderBottom="1px solid var(--chakra-colors-gray-200)" _dark={{ borderColor: "var(--chakra-colors-gray-600)" }}>
-                        보유종목
-                      </Text>
-                      {item.holdings && item.holdings.length > 0 ? (
-                        <>
-                          {item.holdings.map((holding, idx) => (
-                            <StockHolding key={idx} {...holding} />
-                          ))}
-                        </>
-                      ) : (
-                        <Text p={6} textAlign="center" fontSize="sm" color="gray.500">
-                          보유 중인 종목이 없습니다.
-                        </Text>
-                      )}
-                    </Box>
-                  </Flex>
-                )}
-              </Box>
-            )
-          ))}
-        </Flex>
-      </Box>
+                  <FaSync />
+                  토큰 갱신
+                </Button>
+              </Flex>
+            )}
+            <AccountDetail 
+              portfolio={item}
+              balanceInfo={balanceInfo}
+              isLoading={isLoading}
+            />
+          </Flex>
+        )
+      ))}
     </Container>
   )
 }

@@ -4,11 +4,14 @@ import {
   Text,
   VStack,
   Spinner,
+  Flex,
 } from "@chakra-ui/react"
 
 import { type AccountPublic } from "@/client"
 import DeleteAccount from "./DeleteAccount"
 import EditAccount from "./EditAccount"
+import { PortfolioCard } from './PortfolioCard'
+import { PortfolioItem } from '@/types/portfolio'
 
 interface AccountListProps {
   accounts: AccountPublic[] | undefined
@@ -17,9 +20,13 @@ interface AccountListProps {
   onAccountClick: (account: AccountPublic) => void
   balanceInfo: any
   balanceLoading: boolean
+  portfolioData: PortfolioItem[]
+  selectedPortfolio: string | null
+  onPortfolioClick: (portfolio: PortfolioItem) => void
+  onRefreshToken: (accountId: string) => void
 }
 
-export function AccountList({ accounts, isLoading, selectedAccountId, onAccountClick, balanceInfo, balanceLoading }: AccountListProps) {
+export function AccountList({ accounts, isLoading, selectedAccountId, onAccountClick, balanceInfo, balanceLoading, portfolioData, selectedPortfolio, onPortfolioClick, onRefreshToken }: AccountListProps) {
   if (isLoading) {
     return <Spinner />
   }
@@ -338,6 +345,41 @@ export function AccountList({ accounts, isLoading, selectedAccountId, onAccountC
             ))}
           </tbody>
         </table>
+      </Box>
+      <Box mb={8}>
+        <Text fontSize="xl" fontWeight="bold" mb={4}>계좌 목록</Text>
+        <Box 
+          overflowX="auto" 
+          pb={2}
+          css={{
+            '&::-webkit-scrollbar': {
+              height: '8px',
+              borderRadius: '8px',
+              backgroundColor: `var(--chakra-colors-gray-100)`,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              borderRadius: '8px',
+              backgroundColor: `var(--chakra-colors-gray-300)`,
+            },
+          }}
+        >
+          <Flex gap={4} minW="min-content">
+            {portfolioData.map((item, index) => (
+              <Box 
+                key={index}
+                minW={{ base: "280px", md: "320px" }}
+                w={{ base: "280px", md: "320px" }}
+              >
+                <PortfolioCard 
+                  {...item} 
+                  isSelected={selectedPortfolio === item.name}
+                  onClick={() => onPortfolioClick(item)}
+                  onRefreshToken={onRefreshToken}
+                />
+              </Box>
+            ))}
+          </Flex>
+        </Box>
       </Box>
     </VStack>
   )

@@ -11,7 +11,6 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
 
   return (
     <Box>
-      <Text fontWeight="bold" fontSize="xl" mb={4} color="var(--chakra-colors-chakra-text-color)">보유종목 정보</Text>
       <Box overflowX="auto" borderRadius="lg" border="1px solid var(--chakra-colors-chakra-border-color)">
         <table style={{ 
           width: "100%", 

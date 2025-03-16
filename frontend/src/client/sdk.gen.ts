@@ -682,4 +682,44 @@ export class AccountsService {
       },
     })
   }
+
+  /**
+   * Get Account Balance
+   * Get balance information for an account.
+   * @param accountId The ID of the account
+   * @returns Balance information
+   * @throws ApiError
+   */
+  public static getBalance(accountId: string | number): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/accounts/{account_id}/balance",
+      path: {
+        account_id: accountId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Refresh Account Token
+   * Refresh the access token for an account.
+   * @param accountId The ID of the account
+   * @returns Updated account information
+   * @throws ApiError
+   */
+  public static refreshToken(accountId: string | number): CancelablePromise<any> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/accounts/{account_id}/token_refresh",
+      path: {
+        account_id: accountId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
 }
