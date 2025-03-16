@@ -31,17 +31,26 @@ interface SummaryCardProps {
 
 const SummaryCard = ({ title, value, subtitle, icon }: SummaryCardProps) => (
   <Box 
-    p={6} 
-    borderRadius="lg" 
-    border="1px solid var(--chakra-colors-chakra-border-color)"
+    py={4}
+    px={6}
+    borderRadius="xl" 
+    border="2px solid var(--chakra-colors-gray-200)"
     backgroundColor="var(--chakra-colors-chakra-bg)"
+    _dark={{
+      borderColor: "var(--chakra-colors-gray-600)"
+    }}
+    transition="all 0.2s"
+    _hover={{
+      transform: "translateY(-2px)",
+      boxShadow: "lg"
+    }}
   >
-    <Flex alignItems="center" mb={4}>
-      {icon && <Icon as={icon} boxSize={6} color="blue.500" mr={2} />}
-      <Text fontSize="sm" color="gray.500">{title}</Text>
+    <Flex alignItems="center" mb={3}>
+      {icon && <Icon as={icon} boxSize={5} color="blue.500" mr={2} />}
+      <Text fontSize="sm" color="gray.500" fontWeight="medium" _dark={{ color: "gray.400" }}>{title}</Text>
     </Flex>
-    <Text fontSize="2xl" fontWeight="bold">{value}</Text>
-    {subtitle && <Text fontSize="sm" color="gray.500">{subtitle}</Text>}
+    <Text fontSize="2xl" fontWeight="bold" mb={1} _dark={{ color: "white" }}>{value}</Text>
+    {subtitle && <Text fontSize="sm" color="gray.500" _dark={{ color: "gray.400" }}>{subtitle}</Text>}
   </Box>
 )
 
@@ -56,28 +65,36 @@ interface PortfolioCardProps {
 
 const PortfolioCard = ({ name, tags, returnRate, status, isSelected, onClick }: PortfolioCardProps) => (
   <Box 
-    p={6} 
-    borderRadius="lg" 
-    border="1px solid var(--chakra-colors-chakra-border-color)"
+    py={4}
+    px={6}
+    borderRadius="xl" 
+    border="2px solid var(--chakra-colors-gray-200)"
     backgroundColor={isSelected ? "var(--chakra-colors-blue-50)" : "var(--chakra-colors-chakra-bg)"}
     cursor="pointer"
     onClick={onClick}
     transition="all 0.2s"
+    _dark={{
+      borderColor: "var(--chakra-colors-gray-600)",
+      backgroundColor: isSelected ? "var(--chakra-colors-blue-900)" : "var(--chakra-colors-chakra-bg)"
+    }}
     _hover={{
       transform: "translateY(-2px)",
-      boxShadow: "lg"
+      boxShadow: "lg",
+      borderColor: "var(--chakra-colors-blue-500)"
     }}
   >
-    <Text fontSize="lg" fontWeight="bold" mb={3}>{name}</Text>
-    <HStack gap={2} mb={4}>
+    <Text fontSize="lg" fontWeight="bold" mb={3} _dark={{ color: "white" }}>{name}</Text>
+    <HStack gap={2} mb={4} flexWrap="wrap">
       {tags.map((tag, index) => (
-        <Badge key={index} variant="subtle" colorScheme="gray">
+        <Badge key={index} variant="subtle" colorScheme="gray" fontSize="xs">
           {tag}
         </Badge>
       ))}
     </HStack>
-    <Text fontSize="2xl" fontWeight="bold" color="red.500">{returnRate}</Text>
-    {status && <Text fontSize="sm" color="gray.500" mt={2}>{status}</Text>}
+    <Flex justify="space-between" align="center">
+      {status && <Text fontSize="sm" color="gray.500" _dark={{ color: "gray.400" }}>{status}</Text>}
+      <Text fontSize="2xl" fontWeight="bold" color="red.500">{returnRate}</Text>
+    </Flex>
   </Box>
 )
 
@@ -92,25 +109,31 @@ const StockHolding = ({ name, code, returnRate, trend }: StockHoldingProps) => (
   <Flex 
     justify="space-between" 
     align="center" 
-    py={1}
-    px={2}
-    borderBottom="1px solid var(--chakra-colors-chakra-border-color)"
+    py={2}
+    px={6}
+    borderBottom="1px solid var(--chakra-colors-gray-200)"
+    _dark={{
+      borderColor: "var(--chakra-colors-gray-600)"
+    }}
   >
     <Flex align="center" gap={2} flex={1} minWidth={0}>
       <Text 
-        fontWeight="normal"
-        color="black"
-        maxWidth="160px"
+        fontWeight="medium"
+        color="var(--chakra-colors-gray-700)"
+        _dark={{
+          color: "var(--chakra-colors-gray-100)"
+        }}
+        maxWidth="140px"
         overflow="hidden"
         textOverflow="ellipsis"
         whiteSpace="nowrap"
       >
         - {name}
       </Text>
-      <Text fontSize="xs" color="gray.500" flexShrink={0}>{code}</Text>
+      <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} flexShrink={0}>{code}</Text>
     </Flex>
     <Text 
-      fontWeight="normal" 
+      fontWeight="medium" 
       color={trend === "up" ? "red.500" : "blue.500"}
       flexShrink={0}
     >
@@ -307,14 +330,22 @@ function Dashboard() {
   }
 
   return (
-    <Container maxW="full" p={6}>
+    <Container maxW="full" p={{ base: 4, md: 6 }}>
       <Box mb={8}>
-        <Flex justify="space-between" align="center" mb={6}>
+        <Flex 
+          justify="space-between" 
+          align="center" 
+          mb={6}
+          flexDirection={{ base: "column", md: "row" }}
+          gap={{ base: 2, md: 0 }}
+        >
           <Heading size="lg">{user?.full_name || 'Guest'}님의 자산을 알려드립니다!💰</Heading>
-          <Text color="gray.500">최근 업데이트: {new Date().toLocaleString()}</Text>
+          <Text color="gray.500" fontSize={{ base: "sm", md: "md" }}>
+            최근 업데이트: {new Date().toLocaleString()}
+          </Text>
         </Flex>
         
-        <SimpleGrid columns={{ base: 1, md: 3 }} gap={{ base: 0, md: 6 }}>
+        <SimpleGrid columns={{ base: 1, md: 3 }} gap={{ base: 4, md: 6 }}>
           {summaryData.map((item, index) => (
             <SummaryCard key={index} {...item} />
           ))}
@@ -323,7 +354,7 @@ function Dashboard() {
 
       <Box mb={8}>
         <Text fontSize="xl" fontWeight="bold" mb={4}>포트폴리오</Text>
-        <SimpleGrid columns={{ base: 1, md: 3 }} gap={6}>
+        <SimpleGrid columns={{ base: 1, md: 3 }} gap={{ base: 4, md: 6 }}>
           {portfolioData.map((item, index) => (
             <Box key={index}>
               <PortfolioCard 
@@ -343,37 +374,40 @@ function Dashboard() {
                         <Box 
                           mt={2}
                           p={4}
-                          borderRadius="lg"
-                          border="1px solid var(--chakra-colors-chakra-border-color)"
+                          borderRadius="xl"
+                          border="2px solid var(--chakra-colors-gray-200)"
                           backgroundColor="var(--chakra-colors-chakra-bg)"
+                          _dark={{
+                            borderColor: "var(--chakra-colors-gray-600)"
+                          }}
                         >
-                          <SimpleGrid columns={1} gap={3}>
+                          <SimpleGrid columns={1} gap={4}>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">예수금</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
                               <Text fontWeight="bold">
                                 {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
                               </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">D+2 예수금</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
                               <Text fontWeight="bold">
                                 {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
                               </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">평가금액</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
                               <Text fontWeight="bold">
                                 {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
                               </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">매입금액</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
                               <Text fontWeight="bold">
                                 {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
                               </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">평가손익</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
                               <Text 
                                 fontWeight="bold" 
                                 color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
@@ -382,7 +416,7 @@ function Dashboard() {
                               </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="sm" color="gray.500">수익률</Text>
+                              <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
                               <Text 
                                 fontWeight="bold" 
                                 color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
@@ -402,11 +436,14 @@ function Dashboard() {
                   )}
                   <Box 
                     mt={2}
-                    borderRadius="lg" 
-                    border="1px solid var(--chakra-colors-chakra-border-color)"
+                    borderRadius="xl" 
+                    border="2px solid var(--chakra-colors-gray-200)"
                     overflow="hidden"
+                    _dark={{
+                      borderColor: "var(--chakra-colors-gray-600)"
+                    }}
                   >
-                    <Text p={2} fontWeight="bold" borderBottom="1px solid var(--chakra-colors-chakra-border-color)">
+                    <Text px={6} py={2} fontWeight="bold" borderBottom="1px solid var(--chakra-colors-gray-200)" _dark={{ borderColor: "var(--chakra-colors-gray-600)" }}>
                       보유종목
                     </Text>
                     {item.holdings && item.holdings.length > 0 ? (
@@ -415,13 +452,13 @@ function Dashboard() {
                           <StockHolding key={idx} {...holding} />
                         ))}
                         {!selectedPortfolio && item.holdings.length > 3 && (
-                          <Text p={2} textAlign="left" fontSize="sm" color="gray.500">
+                          <Text px={8} py={2} textAlign="left" fontSize="sm" color="gray.500">
                             외 {item.holdings.length - 3}종목 더보기
                           </Text>
                         )}
                       </>
                     ) : (
-                      <Text p={2} textAlign="center" fontSize="sm" color="gray.500">
+                      <Text p={4} textAlign="center" fontSize="sm" color="gray.500">
                         보유 중인 종목이 없습니다.
                       </Text>
                     )}
