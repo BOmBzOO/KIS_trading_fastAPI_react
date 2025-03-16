@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { AccountsService } from "@/client"
 import useAuth from "@/hooks/useAuth"
+import { PerformanceChart } from "@/components/PerformanceChart"
 
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
@@ -371,66 +372,80 @@ function Dashboard() {
                           <Spinner />
                         </Box>
                       ) : balanceInfo && (
-                        <Box 
-                          mt={2}
-                          p={4}
-                          borderRadius="xl"
-                          border="2px solid var(--chakra-colors-gray-200)"
-                          backgroundColor="var(--chakra-colors-chakra-bg)"
-                          _dark={{
-                            borderColor: "var(--chakra-colors-gray-600)"
-                          }}
-                        >
-                          <SimpleGrid columns={1} gap={4}>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
-                              <Text fontWeight="bold">
-                                {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
-                              <Text fontWeight="bold">
-                                {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
-                              <Text fontWeight="bold">
-                                {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
-                              <Text fontWeight="bold">
-                                {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
-                              <Text 
-                                fontWeight="bold" 
-                                color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                              >
-                                {Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0).toLocaleString()}원
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
-                              <Text 
-                                fontWeight="bold" 
-                                color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
-                              >
-                                {(() => {
-                                  const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
-                                  const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
-                                  if (pchsAmt === 0) return '0.00';
-                                  return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
-                                })()}%
-                              </Text>
-                            </Box>
-                          </SimpleGrid>
-                        </Box>
+                        <>
+                          <Box 
+                            mt={2}
+                            p={4}
+                            borderRadius="xl"
+                            border="2px solid var(--chakra-colors-gray-200)"
+                            backgroundColor="var(--chakra-colors-chakra-bg)"
+                            _dark={{
+                              borderColor: "var(--chakra-colors-gray-600)"
+                            }}
+                          >
+                            <SimpleGrid columns={1} gap={4}>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>예수금</Text>
+                                <Text fontWeight="bold">
+                                  {Number(balanceInfo.output2?.[0]?.dnca_tot_amt || 0).toLocaleString()}원
+                                </Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>D+2 예수금</Text>
+                                <Text fontWeight="bold">
+                                  {Number(balanceInfo.output2?.[0]?.prvs_rcdl_excc_amt || 0).toLocaleString()}원
+                                </Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>평가금액</Text>
+                                <Text fontWeight="bold">
+                                  {Number(balanceInfo.output2?.[0]?.tot_evlu_amt || 0).toLocaleString()}원
+                                </Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>매입금액</Text>
+                                <Text fontWeight="bold">
+                                  {Number(balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0).toLocaleString()}원
+                                </Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>평가손익</Text>
+                                <Text 
+                                  fontWeight="bold" 
+                                  color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
+                                >
+                                  {Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0).toLocaleString()}원
+                                </Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.500" mb={1}>수익률</Text>
+                                <Text 
+                                  fontWeight="bold" 
+                                  color={Number(balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0) >= 0 ? "red.500" : "blue.500"}
+                                >
+                                  {(() => {
+                                    const pchsAmt = balanceInfo.output2?.[0]?.pchs_amt_smtl_amt || 0;
+                                    const evluPflsAmt = balanceInfo.output2?.[0]?.evlu_pfls_smtl_amt || 0;
+                                    if (pchsAmt === 0) return '0.00';
+                                    return ((evluPflsAmt / pchsAmt) * 100).toFixed(2);
+                                  })()}%
+                                </Text>
+                              </Box>
+                            </SimpleGrid>
+                          </Box>
+                          
+                          <Box 
+                            mt={2}
+                            borderRadius="xl"
+                            border="2px solid var(--chakra-colors-gray-200)"
+                            backgroundColor="var(--chakra-colors-chakra-bg)"
+                            _dark={{
+                              borderColor: "var(--chakra-colors-gray-600)"
+                            }}
+                          >
+                            <PerformanceChart accountId={item.name} />
+                          </Box>
+                        </>
                       )}
                     </>
                   )}
