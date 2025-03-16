@@ -439,44 +439,72 @@ class DailyTradeResponse(BaseModel):
     error_count: int = 0
     errors: List[str] = []
 
-def process_trade_data(trade: dict) -> dict:
-    """API 응답 데이터를 DB 모델에 맞게 변환"""
-    try:
-        # 숫자 데이터 변환 시 None, 빈 문자열 등 처리
-        def safe_float(value: str | None) -> float:
-            if not value or value.strip() == "":
-                return 0.0
-            return float(value)
+def process_trade_data(response_data: dict) -> list[DailyTrade]:
+    trades = []
+    output1 = response_data.get("output1", [])
+    output2 = response_data.get("output2", [])
 
-        def safe_int(value: str | None) -> int:
-            if not value or value.strip() == "":
-                return 0
-            return int(value)
-
-        order_qty = safe_int(trade.get("ord_qty"))
-        total_trade_qty = safe_int(trade.get("tot_ccld_qty"))
-
-        return {
-            "order_date": trade.get("ord_dt", ""),
-            "stock_code": trade.get("pdno", ""),
-            "stock_name": trade.get("prdt_name", ""),
-            "order_no": trade.get("odno", ""),
-            "order_time": trade.get("ord_tmd", ""),
-            "order_type": trade.get("sll_buy_dvsn_cd", ""),
-            "order_price": safe_float(trade.get("ord_unpr")),
-            "order_qty": order_qty,
-            "trade_price": safe_float(trade.get("avg_prvs")),
-            "trade_qty": total_trade_qty,
-            "trade_amount": safe_float(trade.get("tot_ccld_amt")),
-            "trade_time": trade.get("ccld_time", ""),
-            "total_trade_qty": total_trade_qty,
-            "remaining_qty": max(0, order_qty - total_trade_qty),
-            "cancel_qty": safe_int(trade.get("cncl_qty"))
+    # output2의 합산 정보를 저장
+    summary_data = {}
+    if output2:
+        summary = output2[0]  # output2는 항상 하나의 요약 데이터만 포함
+        summary_data = {
+            "total_order_qty_sum": int(summary.get("tot_ord_qty", 0)),
+            "total_trade_qty_sum": int(summary.get("tot_ccld_qty", 0)),
+            "total_trade_amt_sum": float(summary.get("tot_ccld_amt", 0)),
+            "estimated_tax_amt": float(summary.get("prsm_tlex_amt", 0)),
+            "avg_trade_price": float(summary.get("pchs_avg_pric", 0))
         }
-    except Exception as e:
-        print(f"데이터 변환 중 오류 발생: {str(e)}")
-        print(f"원본 데이터: {trade}")
-        raise ValueError(f"거래 데이터 변환 실패: {str(e)}")
+
+    # output1의 개별 거래 데이터 처리
+    for trade in output1:
+        daily_trade = DailyTrade(
+            order_date=trade["ord_dt"],
+            stock_code=trade["pdno"],
+            stock_name=trade["prdt_name"],
+            order_no=trade["ord_no"],
+            order_time=trade["ord_tmd"],
+            order_type=trade["sll_buy_dvsn_cd"],
+            order_price=float(trade["ord_unpr"]),
+            order_qty=int(trade["ord_qty"]),
+            trade_price=float(trade.get("ccld_unpr", 0)),
+            trade_qty=int(trade.get("ccld_qty", 0)),
+            trade_amount=float(trade.get("ccld_amt", 0)),
+            trade_time=trade.get("ccld_tmd"),
+            total_trade_qty=int(trade.get("tot_ccld_qty", 0)),
+            remaining_qty=int(trade.get("rmn_qty", 0)),
+            cancel_qty=int(trade.get("cncl_cfrm_qty", 0)),
+            
+            # output1의 추가 필드들
+            original_order_no=trade.get("orgn_odno"),
+            order_type_name=trade.get("ord_dvsn_name"),
+            order_type_detail_name=trade.get("sll_buy_dvsn_cd_name"),
+            cancel_yn=trade.get("cncl_yn"),
+            loan_date=trade.get("loan_dt"),
+            order_branch_no=trade.get("ord_gno_brno"),
+            order_media_code=trade.get("ord_dvsn_cd"),
+            reject_qty=int(trade.get("rjct_qty", 0)),
+            trade_condition_name=trade.get("ccld_cndt_name"),
+            inqr_ip_addr=trade.get("inqr_ip_addr"),
+            order_method_code=trade.get("cpbc_ordp_ord_rcit_dvsn_cd"),
+            order_info_code=trade.get("cpbc_ordp_infm_mthd_dvsn_cd"),
+            info_update_time=trade.get("infm_tmd"),
+            phone_number=trade.get("ctac_tlno"),
+            product_type_code=trade.get("prdt_type_cd"),
+            exchange_code=trade.get("excg_dvsn_cd"),
+            order_material_code=trade.get("cpbc_ordp_mtrl_dvsn_cd"),
+            order_org_no=trade.get("ord_orgno"),
+            reserve_order_end_date=trade.get("rsvn_ord_end_dt"),
+            exchange_id_code=trade.get("excg_id_dvsn_cd"),
+            stop_condition_price=float(trade.get("stpm_cndt_pric", 0)),
+            stop_effect_time=trade.get("stpm_efct_occr_dtmd"),
+
+            # output2의 합산 정보 추가
+            **summary_data
+        )
+        trades.append(daily_trade)
+
+    return trades
 
 @router.post("/{account_id}/update-daily-trades", response_model=DailyTradeResponse)
 async def update_daily_trades(
@@ -531,10 +559,10 @@ async def update_daily_trades(
         from sqlmodel import select
         
         try:
-            for trade in trade_data.get("output1", []):
+            for trade in process_trade_data(trade_data):
                 try:
                     # 거래 데이터 변환
-                    trade_dict = process_trade_data(trade)
+                    trade_dict = trade.model_dump()
                     trade_dict["account_id"] = account_id
 
                     print(f"처리할 거래 데이터: {trade_dict}")  # 디버깅용
@@ -561,7 +589,7 @@ async def update_daily_trades(
                     updated_count += 1
 
                 except Exception as e:
-                    error_msg = f"거래 데이터 처리 실패 (주문번호: {trade.get('odno')}): {str(e)}"
+                    error_msg = f"거래 데이터 처리 실패 (주문번호: {trade.get('ordno')}): {str(e)}"
                     print(f"에러: {error_msg}")  # 디버깅용
                     errors.append(error_msg)
                     continue

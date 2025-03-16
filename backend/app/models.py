@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint
+from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint, text
 
 
 # Shared properties
@@ -128,8 +128,9 @@ class AccountUpdate(SQLModel):
     access_token_expired: datetime | None = None
 
 class DailyTradeBase(SQLModel):
+    # output1 필드
     order_date: str = Field(max_length=8, description="주문일자 (YYYYMMDD)")
-    stock_code: str = Field(max_length=10, description="종목코드")
+    stock_code: str = Field(max_length=10, description="종묩코드")
     stock_name: str = Field(max_length=50, description="종목명")
     order_no: str = Field(max_length=10, description="주문번호")
     order_time: str = Field(max_length=6, description="주문시각 (HHMMSS)")
@@ -143,19 +144,51 @@ class DailyTradeBase(SQLModel):
     total_trade_qty: int = Field(default=0, description="총체결수량")
     remaining_qty: int = Field(default=0, description="주문잔량")
     cancel_qty: int = Field(default=0, description="취소수량")
+    
+    # output1의 추가 필드들
+    original_order_no: str | None = Field(default=None, max_length=10, description="원주문번호")
+    order_type_name: str | None = Field(default=None, max_length=20, description="주문구분명")
+    order_type_detail_name: str | None = Field(default=None, max_length=20, description="매매구분명")
+    cancel_yn: str | None = Field(default=None, max_length=1, description="취소여부")
+    loan_date: str | None = Field(default=None, max_length=8, description="대출일자")
+    order_branch_no: str | None = Field(default=None, max_length=5, description="주문점번호")
+    order_media_code: str | None = Field(default=None, max_length=2, description="주문매체구분코드")
+    reject_qty: int = Field(default=0, description="거부수량")
+    trade_condition_name: str | None = Field(default=None, max_length=20, description="체결조건명")
+    inqr_ip_addr: str | None = Field(default=None, max_length=20, description="조회 IP주소")
+    order_method_code: str | None = Field(default=None, max_length=2, description="주문처리구분코드")
+    order_info_code: str | None = Field(default=None, max_length=2, description="주문정보분류코드")
+    info_update_time: str | None = Field(default=None, max_length=6, description="정보변경시각")
+    phone_number: str | None = Field(default=None, max_length=20, description="연락전화번호")
+    product_type_code: str | None = Field(default=None, max_length=3, description="상품유형코드")
+    exchange_code: str | None = Field(default=None, max_length=2, description="거래소코드")
+    order_material_code: str | None = Field(default=None, max_length=2, description="주문매체유형코드")
+    order_org_no: str | None = Field(default=None, max_length=5, description="주문조직번호")
+    reserve_order_end_date: str | None = Field(default=None, max_length=8, description="예약주문종료일자")
+    exchange_id_code: str | None = Field(default=None, max_length=3, description="거래소ID구분코드")
+    stop_condition_price: float = Field(default=0, description="스탑조건가격")
+    stop_effect_time: str | None = Field(default=None, max_length=14, description="스탑발동시각")
+
+    # output2 필드들 (일별 합산 정보)
+    total_order_qty_sum: int | None = Field(default=None, description="총주문수량")
+    total_trade_qty_sum: int | None = Field(default=None, description="총체결수량")
+    total_trade_amt_sum: float | None = Field(default=None, description="총체결금액")
+    estimated_tax_amt: float | None = Field(default=None, description="추정제비용합")
+    avg_trade_price: float | None = Field(default=None, description="매수평균가격")
 
 class DailyTrade(DailyTradeBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     account_id: uuid.UUID = Field(foreign_key="account.id", nullable=False)
     account: "Account" = Relationship(back_populates="daily_trades")
+    
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
-        sa_column=Column(TIMESTAMP(timezone=False))
+        sa_column=Column(TIMESTAMP(timezone=False), server_default=text("CURRENT_TIMESTAMP"))
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
         sa_column=Column(
             TIMESTAMP(timezone=False),
+            server_default=text("CURRENT_TIMESTAMP"),
             onupdate=datetime.utcnow
         )
     )
