@@ -96,7 +96,7 @@ const EditAccount = ({ account }: EditAccountProps) => {
           </DialogHeader>
           <DialogBody>
             <Text mb={4}>계좌 정보를 수정해주세요.</Text>
-            <VStack gap={4}>
+            <VStack gap={2}>
               <Field
                 required
                 invalid={!!errors.acnt_name}
