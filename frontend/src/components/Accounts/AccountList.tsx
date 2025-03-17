@@ -7,11 +7,10 @@ import {
   Flex,
 } from "@chakra-ui/react"
 
-import { type AccountPublic } from "@/client"
+import { type AccountPublic, PortfolioItem } from "../../client/types.gen"
 import DeleteAccount from "./DeleteAccount"
 import EditAccount from "./EditAccount"
 import { PortfolioCard } from './PortfolioCard'
-import { PortfolioItem } from '@/types/portfolio'
 
 interface AccountListProps {
   accounts: AccountPublic[] | undefined
@@ -326,7 +325,7 @@ export function AccountList({ accounts, isLoading, selectedAccountId, onAccountC
                                           textAlign: "right", 
                                           borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
                                           color: "var(--chakra-colors-chakra-text-color)"
-                                        }}>{item.evlu_pfls_rt?.toFixed(2)}%</td>
+                                        }}>{item.evlu_pfls_rt ? Number(item.evlu_pfls_rt).toFixed(2) : '0.00'}%</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -372,6 +371,7 @@ export function AccountList({ accounts, isLoading, selectedAccountId, onAccountC
               >
                 <PortfolioCard 
                   {...item} 
+                  accountId={item.accountId}
                   isSelected={selectedPortfolio === item.name}
                   onClick={() => onPortfolioClick(item)}
                   onRefreshToken={onRefreshToken}

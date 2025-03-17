@@ -1,8 +1,8 @@
 import { Box, Flex, SimpleGrid, Text, Spinner } from '@chakra-ui/react'
-import { PerformanceChart } from '@/components/PerformanceChart'
+import { PerformanceChart } from '@/components/Accounts/PerformanceChart'
 import { BalanceInfo } from './BalanceInfo'
 import { HoldingsTable } from './HoldingsTable'
-import { PortfolioItem } from '@/types/portfolio'
+import { PortfolioItem } from '@/client/types.gen'
 
 interface AccountDetailProps {
   portfolio: PortfolioItem

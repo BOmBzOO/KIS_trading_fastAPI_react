@@ -2,6 +2,12 @@ from datetime import datetime
 import requests
 from fastapi import HTTPException
 from app.models import Account
+from app.constants import (
+    KIS_API_BASE_URL,
+    KIS_API_ENDPOINTS,
+    KIS_API_TR_ID,
+    KIS_API_PARAMS
+)
 
 def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple[str, datetime]:
     """
@@ -9,10 +15,10 @@ def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple
     Returns:
         tuple[str, datetime]: (access_token, expires_at)
     """
-    base_url = "https://openapi.koreainvestment.com:9443" if acnt_type == "live" else "https://openapivts.koreainvestment.com:29443"
+    base_url = KIS_API_BASE_URL[acnt_type]
     try:
         response = requests.post(
-            f"{base_url}/oauth2/tokenP",
+            f"{base_url}{KIS_API_ENDPOINTS['token']}",
             json={
                 "grant_type": "client_credentials",
                 "appkey": app_key,
@@ -37,31 +43,23 @@ def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple
             detail=f"KIS API 토큰 만료 시간 파싱 실패: {str(e)}"
         )
 
-async def fetch_account_balance(account: Account) -> dict:
+async def inquire_balance_from_kis(account: Account) -> dict:
     """KIS API를 통해 계좌 잔고를 조회"""
-    base_url = "https://openapi.koreainvestment.com:9443" if account.acnt_type == "live" else "https://openapivts.koreainvestment.com:29443"
+    base_url = KIS_API_BASE_URL[account.acnt_type]
     
     try:
         response = requests.get(
-            f"{base_url}/uapi/domestic-stock/v1/trading/inquire-balance",
+            f"{base_url}{KIS_API_ENDPOINTS['balance']}",
             params={
                 "CANO": account.cano,
                 "ACNT_PRDT_CD": account.acnt_prdt_cd,
-                "AFHR_FLPR_YN": "N",
-                "OFL_YN": "",
-                "INQR_DVSN": "02",
-                "UNPR_DVSN": "01",
-                "FUND_STTL_ICLD_YN": "N",
-                "FNCG_AMT_AUTO_RDPT_YN": "N",
-                "PRCS_DVSN": "00",
-                "CTX_AREA_FK100": "",
-                "CTX_AREA_NK100": ""
+                **KIS_API_PARAMS["balance"]
             },
             headers={
                 "authorization": f"Bearer {account.kis_access_token}",
                 "appkey": account.app_key,
                 "appsecret": account.app_secret,
-                "tr_id": "VTTC8434R" if account.acnt_type == "paper" else "TTTC8434R",
+                "tr_id": KIS_API_TR_ID["balance"][account.acnt_type],
                 "content-type": "application/json"
             }
         )
@@ -74,39 +72,29 @@ async def fetch_account_balance(account: Account) -> dict:
             detail=f"KIS API 잔고 조회 실패: {str(e)}"
         )
 
-async def fetch_daily_trades(account: Account, start_date: str, end_date: str) -> dict:
+async def inquire_daily_ccld_from_kis(account: Account, start_date: str, end_date: str) -> dict:
     """KIS API를 통해 일별 주문체결 내역을 조회"""
-    base_url = "https://openapi.koreainvestment.com:9443" if account.acnt_type == "live" else "https://openapivts.koreainvestment.com:29443"
+    base_url = KIS_API_BASE_URL[account.acnt_type]
     
     params = {
         "CANO": account.cano,
         "ACNT_PRDT_CD": account.acnt_prdt_cd,
         "INQR_STRT_DT": start_date.replace("-", ""),
         "INQR_END_DT": end_date.replace("-", ""),
-        "SLL_BUY_DVSN_CD": "00",
-        "INQR_DVSN": "00",
-        "PDNO": "",
-        "CCLD_DVSN": "00",
-        "ORD_GNO_BRNO": "",
-        "ODNO": "",
-        "INQR_DVSN_3": "00",
-        "INQR_DVSN_1": "",
-        "INQR_DVSN_2": "",
-        "CTX_AREA_FK100": "",
-        "CTX_AREA_NK100": ""
+        **KIS_API_PARAMS["daily_trades"]
     }
     
     headers = {
         "authorization": f"Bearer {account.kis_access_token}",
         "appkey": account.app_key,
         "appsecret": account.app_secret,
-        "tr_id": "TTTC8001R" if account.acnt_type == "live" else "VTTC8001R",
+        "tr_id": KIS_API_TR_ID["daily_trades"][account.acnt_type],
         "content-type": "application/json"
     }
     
     try:
         response = requests.get(
-            f"{base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+            f"{base_url}{KIS_API_ENDPOINTS['daily_trades']}",
             params=params,
             headers=headers
         )

@@ -9,8 +9,9 @@ interface PortfolioCardProps {
   isSelected?: boolean
   accessTokenExpired?: boolean
   tokenExpiryTime?: string
+  accountId: string
   onClick?: () => void
-  onRefreshToken?: () => void
+  onRefreshToken?: (accountId: string) => void
 }
 
 export function PortfolioCard({
@@ -20,6 +21,7 @@ export function PortfolioCard({
   isSelected = false,
   accessTokenExpired = false,
   tokenExpiryTime,
+  accountId,
   onClick,
   onRefreshToken
 }: PortfolioCardProps) {
@@ -47,11 +49,11 @@ export function PortfolioCard({
               colorScheme="yellow"
               onClick={(e) => {
                 e.stopPropagation()
-                onRefreshToken?.()
+                onRefreshToken?.(accountId)
               }}
               display="flex"
               alignItems="center"
-              gap="2"
+              gap="1"
             >
               <FaSync />
               갱신
@@ -61,14 +63,14 @@ export function PortfolioCard({
 
         <HStack wrap="wrap" gap={2}>
           <Badge
-            colorScheme={tags.includes("활성") ? "green" : "gray"}
-          >
-            {tags.includes("활성") ? "활성" : "비활성"}
-          </Badge>
-          <Badge
             colorScheme={tags.includes("실전매매") ? "blue" : "purple"}
           >
             {tags.includes("실전매매") ? "실전매매" : "가상매매"}
+          </Badge>
+          <Badge
+            colorScheme={tags.includes("활성") ? "green" : "gray"}
+          >
+            {tags.includes("활성") ? "활성" : "비활성"}
           </Badge>
           {accessTokenExpired && (
             <Badge colorScheme="red">

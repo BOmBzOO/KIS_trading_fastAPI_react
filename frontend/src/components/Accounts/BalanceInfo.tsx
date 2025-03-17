@@ -7,6 +7,12 @@ interface BalanceInfoProps {
 export function BalanceInfo({ balanceInfo }: BalanceInfoProps) {
   const output2 = balanceInfo?.output2?.[0] || {}
   
+  const calculateReturnRate = (pchsAmt: number, evluPflsAmt: number) => {
+    if (pchsAmt === 0) return '0.00'
+    const returnRate = (evluPflsAmt / pchsAmt) * 100
+    return returnRate.toFixed(2)
+  }
+  
   const balanceItems = [
     { label: '예수금', value: output2.dnca_tot_amt || 0 },
     { label: 'D+2 예수금', value: output2.prvs_rcdl_excc_amt || 0 },
@@ -19,12 +25,10 @@ export function BalanceInfo({ balanceInfo }: BalanceInfoProps) {
     },
     {
       label: '수익률',
-      value: (() => {
-        const pchsAmt = output2.pchs_amt_smtl_amt || 0
-        const evluPflsAmt = output2.evlu_pfls_smtl_amt || 0
-        if (pchsAmt === 0) return '0.00'
-        return ((evluPflsAmt / pchsAmt) * 100).toFixed(2)
-      })(),
+      value: calculateReturnRate(
+        output2.pchs_amt_smtl_amt || 0,
+        output2.evlu_pfls_smtl_amt || 0
+      ),
       isProfit: true,
       isPercentage: true
     }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Flex, Heading, Text, SimpleGrid } from '@chakra-ui/react'
-import { SummaryCard } from '@/components/Accounts/SummaryCard'
+import { SummaryCard } from './SummaryCard'
 
 interface DashboardHeaderProps {
   userName: string

@@ -5,16 +5,18 @@ from typing import Optional
 
 from sqlmodel import select, Session
 
-from app.core.constants import (
+from app.constants import (
     TOKEN_REFRESH_THRESHOLD_MINUTES,
     TOKEN_CHECK_INTERVAL_SECONDS,
     BALANCE_CHECK_INTERVAL_SECONDS,
     LOG_FORMAT,
-    LOG_DATE_FORMAT
+    LOG_DATE_FORMAT,
+    TOKEN_CHECK_INTERVAL,
+    BALANCE_CHECK_INTERVAL
 )
 from app.core.db import engine
 from app.models import Account, MinutelyBalance
-from app.api.services.kis_api import get_kis_access_token, fetch_account_balance
+from app.api.services.kis_api import get_kis_access_token, inquire_balance_from_kis
 
 # 로깅 설정
 logging.basicConfig(
@@ -28,6 +30,8 @@ logger = logging.getLogger(__name__)
 background_tasks = set()
 last_balance_check = {}  # 계정별 마지막 잔고 체크 시간 저장
 last_token_check = {}    # 계정별 마지막 토큰 체크 시간 저장
+last_token_task_time = datetime.now()  # 마지막 토큰 체크 작업 시간
+last_balance_task_time = datetime.now()  # 마지막 잔고 체크 작업 시간
 
 def should_refresh_token(expires_at: Optional[datetime]) -> bool:
     """토큰 갱신이 필요한지 확인"""
@@ -61,8 +65,17 @@ def should_check_balance(account_id: str) -> bool:
 
 async def check_and_refresh_tokens():
     """모든 활성 계정의 토큰을 주기적으로 체크하고 갱신"""
+    global last_token_task_time
+    
     while True:
         try:
+            current_time = datetime.now()
+            time_diff = (current_time - last_token_task_time).total_seconds()
+            
+            if time_diff < TOKEN_CHECK_INTERVAL:
+                await asyncio.sleep(1)
+                continue
+
             with Session(engine) as session:
                 # 활성 계정 조회
                 statement = select(Account).where(Account.is_active == True)
@@ -88,7 +101,7 @@ async def check_and_refresh_tokens():
                             session.add(account)
                             refresh_count += 1
                         
-                        last_token_check[account.id] = datetime.now()
+                        last_token_check[account.id] = current_time
                         check_count += 1
                         
                     except Exception as e:
@@ -107,15 +120,26 @@ async def check_and_refresh_tokens():
                     for acnt_name, error in failed_accounts:
                         logger.error(f"토큰 갱신 실패 - 계정: {acnt_name}, 에러: {error}")
                 
+                last_token_task_time = current_time
+                
         except Exception as e:
             logger.error(f"토큰 체크 중 오류 발생: {str(e)}")
         
-        await asyncio.sleep(1)  # 1초마다 체크하되, 각 계정은 60초 간격으로 실행
+        await asyncio.sleep(1)
 
 async def check_and_save_balances():
     """모든 활성 계정의 잔고를 주기적으로 체크하고 저장"""
+    global last_balance_task_time
+    
     while True:
         try:
+            current_time = datetime.now()
+            time_diff = (current_time - last_balance_task_time).total_seconds()
+            
+            if time_diff < BALANCE_CHECK_INTERVAL:
+                await asyncio.sleep(1)
+                continue
+
             with Session(engine) as session:
                 # 활성 계정 조회
                 statement = select(Account).where(Account.is_active == True)
@@ -142,7 +166,7 @@ async def check_and_save_balances():
                             session.commit()
                         
                         # 잔고 조회 및 저장
-                        balance_data = await fetch_account_balance(account)
+                        balance_data = await inquire_balance_from_kis(account)
                         
                         # 응답 데이터 확인 및 처리
                         if balance_data and isinstance(balance_data, dict):
@@ -182,7 +206,7 @@ async def check_and_save_balances():
                                 session.add(minutely_balance)
                                 session.commit()
                                 success_count += 1
-                                last_balance_check[account.id] = datetime.now()
+                                last_balance_check[account.id] = current_time
                             else:
                                 failed_accounts.append((account.acnt_name, "잔고 데이터 없음"))
                         else:
@@ -192,7 +216,6 @@ async def check_and_save_balances():
                         failed_accounts.append((account.acnt_name, str(e)))
                         continue
                 
-                # 전체 결과 로깅
                 if success_count > 0:
                     logger.info(f"잔고 저장 완료 - 총 {success_count}개 계좌")
                 
@@ -201,10 +224,12 @@ async def check_and_save_balances():
                     for acnt_name, error in failed_accounts:
                         logger.error(f"잔고 체크 실패 - 계정: {acnt_name}, 에러: {error}")
                 
+                last_balance_task_time = current_time
+                
         except Exception as e:
             logger.error(f"잔고 체크 중 오류 발생: {str(e)}")
         
-        await asyncio.sleep(1)  # 1초마다 체크하되, 각 계정은 60초 간격으로 실행
+        await asyncio.sleep(1)
 
 def start_background_tasks():
     """백그라운드 태스크 시작"""

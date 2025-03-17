@@ -6,10 +6,10 @@ import { useQuery } from "@tanstack/react-query"
 
 import { AccountsService } from "@/client"
 import useAuth from "@/hooks/useAuth"
-import { DashboardHeader } from "@/components/Dashboard/DashboardHeader"
+import { DashboardHeader } from "@/components/Accounts/DashboardHeader"
 import { PortfolioList } from "@/components/Accounts/PortfolioList"
 import { AccountDetail } from "@/components/Accounts/AccountDetail"
-import { PortfolioItem } from "@/types/portfolio"
+import { PortfolioItem } from "@/client/types.gen"
 
 // 임시 데이터 정의
 const MOCK_BALANCE_DATA = {
@@ -78,27 +78,48 @@ export const Route = createFileRoute("/_layout/")({
 function Dashboard() {
   const { user } = useAuth()
   const [summaryData, setSummaryData] = React.useState([
-    { title: "자산", value: "0원", subtitle: "", icon: FaWallet },
-    { title: "수익률(1개월)", value: "0%", subtitle: "", icon: FaChartLine },
-    { title: "수익률(금일)", value: "0%", subtitle: "", icon: FaTrophy },
+    { 
+      title: "총합", 
+      value: `${MOCK_BALANCE_DATA.output2[0].tot_evlu_amt.toLocaleString()}원`, 
+      subtitle: "초기 데이터", 
+      icon: FaWallet 
+    },
+    { 
+      title: "수익률(1개월)", 
+      value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt}%`, 
+      subtitle: "초기 데이터", 
+      icon: FaChartLine 
+    },
+    { 
+      title: "수익률(금일)", 
+      value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt_1}%`, 
+      subtitle: "초기 데이터", 
+      icon: FaTrophy 
+    },
   ])
 
-  const [portfolioData, setPortfolioData] = React.useState<PortfolioItem[]>([])
-  const [selectedPortfolio, setSelectedPortfolio] = React.useState<string | null>(null)
-  const [balanceInfo, setBalanceInfo] = React.useState<any>(null)
+  const [portfolioData, setPortfolioData] = React.useState<PortfolioItem[]>(MOCK_PORTFOLIO_DATA)
+  const [selectedPortfolio, setSelectedPortfolio] = React.useState<string | null>(MOCK_PORTFOLIO_DATA[0]?.name || null)
+  const [balanceInfo, setBalanceInfo] = React.useState<any>(MOCK_BALANCE_DATA)
   const [isLoading, setIsLoading] = React.useState(false)
   const [tokenExpired, setTokenExpired] = React.useState(false)
-  const [tokenExpiryTime, setTokenExpiryTime] = React.useState<string | null>(null)
+  const [tokenExpiryTime, setTokenExpiryTime] = React.useState<string | null>(MOCK_PORTFOLIO_DATA[0]?.tokenExpiryTime || null)
 
   const { data: accounts, isLoading: accountsLoading, refetch: refetchAccounts } = useQuery({
     queryKey: ["accounts"],
-    queryFn: () => AccountsService.readAccounts(),
+    queryFn: () => AccountsService.readAccounts()
   })
+
+  React.useEffect(() => {
+    if (!accounts?.data) {
+      console.log('계좌 데이터 로딩 실패, 초기 데이터 사용')
+    }
+  }, [accounts])
 
   const fetchBalance = async (account: any) => {
     setIsLoading(true)
     try {
-      const data = await AccountsService.getBalance(account.id)
+      const data = await AccountsService.inquireBalanceFromKis(account.id)
       setBalanceInfo(data)
       setTokenExpired(false)
       setTokenExpiryTime(null)
@@ -127,7 +148,7 @@ function Dashboard() {
 
   const refreshToken = async (accountId: string) => {
     try {
-      const updatedAccount = await AccountsService.refreshToken(accountId)
+      const updatedAccount = await AccountsService.refreshAccountToken(accountId)
       await refetchAccounts()
       setTokenExpired(false)
       setTokenExpiryTime(null)
@@ -151,19 +172,19 @@ function Dashboard() {
           { 
             title: "총합", 
             value: `${MOCK_BALANCE_DATA.output2[0].tot_evlu_amt.toLocaleString()}원`, 
-            subtitle: "임시 데이터", 
+            subtitle: "초기 데이터", 
             icon: FaWallet 
           },
           { 
             title: "수익률(1개월)", 
             value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt}%`, 
-            subtitle: "임시 데이터", 
+            subtitle: "초기 데이터", 
             icon: FaChartLine 
           },
           { 
             title: "수익률(금일)", 
             value: `${MOCK_BALANCE_DATA.output2[0].asst_icdc_erng_rt_1}%`, 
-            subtitle: "임시 데이터", 
+            subtitle: "초기 데이터", 
             icon: FaTrophy 
           },
         ])
@@ -178,7 +199,7 @@ function Dashboard() {
 
       const balancePromises = accounts.data.map(async (account) => {
         try {
-          const data = await AccountsService.getBalance(account.id)
+          const data = await AccountsService.inquireBalanceFromKis(account.id)
           return { account, data, error: null }
         } catch (error) {
           console.error(`Error fetching balance for account ${account.id}:`, error)
@@ -224,8 +245,8 @@ function Dashboard() {
         newPortfolioData.push({
           name: account.acnt_name,
           tags: [
-            account.is_active ? "활성" : "비활성",
             account.acnt_type === "paper" ? "가상매매" : "실전매매",
+            account.is_active ? "활성" : "비활성",
           ],
           returnRate: `${returnRate}%`,
           status: balance.output1?.length ? undefined : "",
@@ -278,6 +299,53 @@ function Dashboard() {
         <Flex justify="center" align="center" minH="60vh">
           <Spinner size="xl" />
         </Flex>
+      </Container>
+    )
+  }
+
+  // API 호출 실패 시 초기 데이터 표시
+  if (!accounts?.data) {
+    return (
+      <Container maxW="full" p={{ base: 4, md: 6 }}>
+        <DashboardHeader 
+          userName={user?.full_name || ''} 
+          summaryData={summaryData} 
+        />
+
+        <PortfolioList 
+          portfolioData={portfolioData}
+          selectedPortfolio={selectedPortfolio}
+          onPortfolioClick={handlePortfolioClick}
+          onRefreshToken={refreshToken}
+        />
+
+        {portfolioData.map((item, index) => (
+          selectedPortfolio === item.name && (
+            <Flex key={index} direction="column" gap={4}>
+              <Flex 
+                bg="yellow.100" 
+                p={4} 
+                borderRadius="md" 
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <Flex direction="column" gap={1}>
+                  <Text color="yellow.800" fontWeight="bold">
+                    초기 데이터 표시 중
+                  </Text>
+                  <Text color="yellow.600" fontSize="sm">
+                    서버 연결이 실패하여 초기 데이터를 표시합니다
+                  </Text>
+                </Flex>
+              </Flex>
+              <AccountDetail 
+                portfolio={item}
+                balanceInfo={balanceInfo}
+                isLoading={isLoading}
+              />
+            </Flex>
+          )
+        ))}
       </Container>
     )
   }

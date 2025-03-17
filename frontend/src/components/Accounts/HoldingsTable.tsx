@@ -90,7 +90,7 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
                   textAlign: "right", 
                   borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
                   color: "var(--chakra-colors-chakra-text-color)"
-                }}>{item.evlu_pfls_rt?.toFixed(2)}%</td>
+                }}>{item.evlu_pfls_rt ? Number(item.evlu_pfls_rt).toFixed(2) : '0.00'}%</td>
               </tr>
             ))}
           </tbody>

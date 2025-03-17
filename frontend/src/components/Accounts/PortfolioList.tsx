@@ -1,6 +1,6 @@
 import { Box, Heading, Flex } from '@chakra-ui/react'
 import { PortfolioCard } from './PortfolioCard'
-import { PortfolioItem } from '@/types/portfolio'
+import { PortfolioItem } from '@/client/types.gen'
 
 interface PortfolioListProps {
   portfolioData: PortfolioItem[]
@@ -28,6 +28,7 @@ export function PortfolioList({
             isSelected={selectedPortfolio === portfolio.name}
             accessTokenExpired={portfolio.accessTokenExpired}
             tokenExpiryTime={portfolio.tokenExpiryTime}
+            accountId={portfolio.accountId}
             onClick={() => onPortfolioClick(portfolio)}
             onRefreshToken={() => onRefreshToken(portfolio.accountId)}
           />

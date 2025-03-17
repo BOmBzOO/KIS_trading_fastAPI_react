@@ -684,16 +684,16 @@ export class AccountsService {
   }
 
   /**
-   * Get Account Balance
-   * Get balance information for an account.
+   * Inquire Balance From KIS
+   * Get balance information from KIS API.
    * @param accountId The ID of the account
    * @returns Balance information
    * @throws ApiError
    */
-  public static getBalance(accountId: string | number): CancelablePromise<any> {
+  public static inquireBalanceFromKis(accountId: string | number): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/accounts/{account_id}/balance",
+      url: "/api/v1/accounts/{account_id}/inquire_balance_from_kis",
       path: {
         account_id: accountId,
       },
@@ -710,7 +710,7 @@ export class AccountsService {
    * @returns Updated account information
    * @throws ApiError
    */
-  public static refreshToken(accountId: string | number): CancelablePromise<any> {
+  public static refreshAccountToken(accountId: string | number): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/accounts/{account_id}/token_refresh",

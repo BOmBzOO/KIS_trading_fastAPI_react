@@ -36,7 +36,7 @@ function Accounts() {
   const fetchBalance = async (account: AccountPublic) => {
     setIsLoading(true)
     try {
-      const data = await AccountsService.getBalance(account.id)
+      const data = await AccountsService.inquireBalanceFromKis(account.id)
       setBalanceInfo(data)
     } catch (error) {
       console.error('잔고 조회중 오류 발생:', error)

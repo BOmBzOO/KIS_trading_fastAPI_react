@@ -11,7 +11,7 @@ from app.models import (
     AccountUpdate, Message, DailyTrade, DailyTradeBase, 
     MinutelyBalance, DailyTradeResponse, BalanceResponse
 )
-from app.api.services.kis_api import get_kis_access_token, fetch_account_balance, fetch_daily_trades
+from app.api.services.kis_api import get_kis_access_token, inquire_balance_from_kis, inquire_daily_ccld_from_kis
 from app.api.services.background_tasks import (
     start_background_tasks, stop_background_tasks, 
     should_refresh_token
@@ -186,7 +186,7 @@ def delete_account(
     session.commit()
     return Message(message="Account deleted successfully")
 
-@router.get("/{account_id}/balance", response_model=BalanceResponse)
+@router.get("/{account_id}/inquire_balance_from_kis", response_model=BalanceResponse)
 async def get_account_balance(
     session: SessionDep,
     current_user: CurrentUser,
@@ -203,7 +203,7 @@ async def get_account_balance(
         refresh_token_if_needed(account)
         session.commit()
     
-    return await fetch_account_balance(account)
+    return await inquire_balance_from_kis(account)
 
 @router.post("/{account_id}/token_refresh", response_model=AccountPublic)
 def refresh_account_token(
@@ -242,7 +242,7 @@ def refresh_account_token(
             detail=f"Failed to refresh token: {str(e)}"
         )
 
-@router.post("/{account_id}/update-daily-trades", response_model=DailyTradeResponse)
+@router.post("/{account_id}/update_daily_ccld", response_model=DailyTradeResponse)
 async def update_daily_trades(
     account_id: uuid.UUID,
     start_date: str | None = None,
@@ -275,7 +275,7 @@ async def update_daily_trades(
             session.commit()
 
         # KIS API 호출
-        trade_data = await fetch_daily_trades(account, start_date, end_date)
+        trade_data = await inquire_daily_ccld_from_kis(account, start_date, end_date)
         
         if not trade_data.get("output1"):
             return DailyTradeResponse(
@@ -335,7 +335,7 @@ async def update_daily_trades(
             detail=f"데이터 업데이트 실패: {str(e)}"
         )
 
-@router.get("/{account_id}/daily-trades", response_model=List[DailyTradeBase])
+@router.get("/{account_id}/inquire_daily_ccld", response_model=List[DailyTradeBase])
 async def get_daily_trades(
     account_id: uuid.UUID,
     start_date: str,
@@ -367,7 +367,7 @@ async def get_daily_trades(
     trades = query.order_by(DailyTrade.order_date.desc(), DailyTrade.order_time.desc()).all()
     return trades
 
-@router.get("/{account_id}/minutely-balances", response_model=List[MinutelyBalance])
+@router.get("/{account_id}/inquire_balance_from_db", response_model=List[MinutelyBalance])
 async def get_minutely_balances(
     account_id: uuid.UUID,
     start_time: datetime | None = None,
