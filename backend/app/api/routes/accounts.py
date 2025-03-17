@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, timedelta
 import asyncio
 import os
+import logging
 from dotenv import load_dotenv
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -12,64 +13,199 @@ from sqlalchemy.orm import joinedload
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Account, AccountCreate, AccountPublic, AccountsPublic, AccountUpdate, Message, DailyTrade, DailyTradeBase
+from app.models import Account, AccountCreate, AccountPublic, AccountsPublic, AccountUpdate, Message, DailyTrade, DailyTradeBase, MinutelyBalance
 from app.core.config import settings
 from app.core.db import engine, get_session
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('background_tasks.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # .env 파일 로드
 load_dotenv()
 
 # 백그라운드 작업 설정
-TOKEN_REFRESH_INTERVAL = int(os.getenv("TOKEN_REFRESH_INTERVAL", "3600"))  # 기본값 1시간
-TOKEN_REFRESH_BEFORE_EXPIRY = int(os.getenv("TOKEN_REFRESH_BEFORE_EXPIRY", "3600"))  # 기본값 1시간
+TOKEN_CHECK_INTERVAL = 60  # 60초(1분) 간격으로 토큰 체크
+BALANCE_CHECK_INTERVAL = 60  # 60초(1분) 간격으로 잔고 조회
+MAX_RETRIES = 3  # 최대 재시도 횟수
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 # 전역 변수로 백그라운드 태스크 실행 여부를 추적
 background_task_running = False
 
-async def periodic_token_refresh():
+def should_refresh_token(expires_at: datetime) -> bool:
+    """토큰 만료 10분 전인지 확인"""
+    if not expires_at:
+        return True
+    return datetime.now() + timedelta(minutes=10) >= expires_at
+
+def refresh_token_if_needed(account: Account) -> None:
+    """계정의 토큰이 만료되어가는 경우 갱신"""
+    if should_refresh_token(account.access_token_expired):
+        try:
+            access_token, expires_at = get_kis_access_token(
+                app_key=account.app_key,
+                app_secret=account.app_secret,
+                acnt_type=account.acnt_type
+            )
+            account.kis_access_token = access_token
+            account.access_token_expired = expires_at
+            logger.info(f"Token refreshed for account {account.id}")
+        except Exception as e:
+            logger.error(f"Error refreshing token for account {account.id}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"토큰 갱신 실패: {str(e)}"
+            )
+
+async def periodic_token_check():
     """주기적으로 모든 활성화된 계정의 토큰을 검증하고 갱신"""
     global background_task_running
     while background_task_running:
         try:
             session = next(get_session())
-            # 모든 활성화된 계정 조회
             statement = select(Account).where(Account.is_active == True)
             accounts = session.exec(statement).all()
             
-            # 각 계정의 토큰 상태를 확인하고 필요한 경우 갱신
+            refresh_count = 0
             for account in accounts:
                 try:
-                    refresh_token_if_needed(account)
+                    if should_refresh_token(account.access_token_expired):
+                        access_token, expires_at = get_kis_access_token(
+                            app_key=account.app_key,
+                            app_secret=account.app_secret,
+                            acnt_type=account.acnt_type
+                        )
+                        account.kis_access_token = access_token
+                        account.access_token_expired = expires_at
+                        refresh_count += 1
                 except Exception as e:
-                    print(f"Error refreshing token for account {account.id}: {str(e)}")
+                    logger.error(f"Token refresh failed for {account.acnt_name}")
             
+            if refresh_count > 0:
+                logger.info(f"Refreshed {refresh_count} tokens")
             session.commit()
         except Exception as e:
-            print(f"Error in periodic token refresh: {str(e)}")
+            logger.error(f"Token check error: {str(e)}")
         
-        # 환경 변수에서 설정한 간격으로 실행
-        await asyncio.sleep(TOKEN_REFRESH_INTERVAL)
+        await asyncio.sleep(TOKEN_CHECK_INTERVAL)
+
+async def periodic_balance_check():
+    """주기적으로 모든 활성화된 계정의 잔고를 조회하고 저장"""
+    global background_task_running
+    retry_counts = {}  # 계정별 재시도 횟수 추적
+    
+    while background_task_running:
+        try:
+            current_time = datetime.now()
+            # # 장 운영 시간(9:00 ~ 15:30)에만 실행
+            # if current_time.hour < 9 or (current_time.hour == 15 and current_time.minute >= 30) or current_time.hour > 15:
+            #     logger.info(f"Outside trading hours ({current_time.strftime('%H:%M')}), skipping balance check")
+            #     await asyncio.sleep(BALANCE_CHECK_INTERVAL)
+            #     continue
+            
+            logger.info(f"Starting periodic balance check at {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            session = next(get_session())
+            statement = select(Account).where(Account.is_active == True)
+            accounts = session.exec(statement).all()
+            
+            success_count = 0
+            error_count = 0
+            
+            # 각 계정의 잔고를 조회하고 저장
+            for account in accounts:
+                try:
+                    # 잔고 조회
+                    balance_data = await fetch_account_balance(account)
+                    
+                    if balance_data.get("rt_cd") == "0":
+                        output1 = balance_data.get("output1", [])
+                        output2 = balance_data.get("output2", [{}])[0]
+                        
+                        # 수익률 계산
+                        purchase_amount = float(output2.get("pchs_amt_smtl_amt", 0))
+                        eval_profit_loss = float(output2.get("evlu_pfls_smtl_amt", 0))
+                        profit_loss_rate = (eval_profit_loss / purchase_amount * 100) if purchase_amount > 0 else 0
+                        
+                        # MinutelyBalance 객체 생성
+                        minutely_balance = MinutelyBalance(
+                            account_id=account.id,
+                            total_balance=float(output2.get("dnca_tot_amt", 0)),
+                            available_balance=float(output2.get("prvs_rcdl_excc_amt", 0)),
+                            total_assets=float(output2.get("tot_evlu_amt", 0)),
+                            purchase_amount=purchase_amount,
+                            eval_amount=float(output2.get("evlu_amt_smtl_amt", 0)),
+                            profit_loss=eval_profit_loss,
+                            profit_loss_rate=profit_loss_rate,
+                            asset_change_amount=float(output2.get("asst_icdc_amt", 0)),
+                            asset_change_rate=float(output2.get("asst_icdc_rt", 0)),
+                            holdings=[{
+                                "stock_code": item.get("pdno"),
+                                "stock_name": item.get("prdt_name"),
+                                "quantity": int(item.get("hldg_qty", 0)),
+                                "purchase_price": float(item.get("pchs_avg_pric", 0)),
+                                "current_price": float(item.get("prpr", 0)),
+                                "eval_amount": float(item.get("evlu_amt", 0)),
+                                "profit_loss": float(item.get("evlu_pfls_amt", 0)),
+                                "profit_loss_rate": float(item.get("evlu_pfls_rt", 0))
+                            } for item in output1] if output1 else None
+                        )
+                        
+                        session.add(minutely_balance)
+                        logger.info(f"Account {account.acnt_name}: Assets {minutely_balance.total_assets:,.0f}원 ({minutely_balance.profit_loss_rate:+.1f}%)")
+                        success_count += 1
+                        retry_counts[account.id] = 0  # 성공 시 재시도 횟수 초기화
+                        
+                except Exception as e:
+                    error_count += 1
+                    retry_counts[account.id] = retry_counts.get(account.id, 0) + 1
+                    
+                    if retry_counts[account.id] <= MAX_RETRIES:
+                        logger.error(f"Balance check failed for {account.acnt_name} (Try {retry_counts[account.id]}/{MAX_RETRIES})")
+                        if retry_counts[account.id] < MAX_RETRIES:
+                            await asyncio.sleep(5)  # 5초 대기 후 다음 시도
+                            continue
+                    else:
+                        logger.error(f"Max retries reached for {account.acnt_name}")
+                    continue
+            
+            try:
+                session.commit()
+                if success_count > 0 or error_count > 0:
+                    logger.info(f"Balance check completed: {success_count} success, {error_count} errors")
+            except Exception as e:
+                logger.error("Failed to save balance data")
+                session.rollback()
+            
+        except Exception as e:
+            logger.error(f"Balance check error: {str(e)}")
+        
+        await asyncio.sleep(BALANCE_CHECK_INTERVAL)
 
 @router.on_event("startup")
 async def start_background_tasks():
     """애플리케이션 시작 시 백그라운드 태스크 시작"""
     global background_task_running
     background_task_running = True
-    asyncio.create_task(periodic_token_refresh())
+    logger.info("Starting background tasks...")
+    asyncio.create_task(periodic_token_check())
+    asyncio.create_task(periodic_balance_check())
+    logger.info("Background tasks started successfully")
 
 @router.on_event("shutdown")
 async def stop_background_tasks():
     """애플리케이션 종료 시 백그라운드 태스크 중지"""
     global background_task_running
     background_task_running = False
-
-def should_refresh_token(expires_at: datetime) -> bool:
-    """토큰 만료 1시간 전인지 확인"""
-    if not expires_at:
-        return True
-    return datetime.now() + timedelta(hours=1) >= expires_at
+    logger.info("Background tasks stopped")
 
 def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple[str, datetime]:
     """
@@ -105,17 +241,6 @@ def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple
             status_code=500,
             detail=f"KIS API 토큰 만료 시간 파싱 실패: {str(e)}"
         )
-
-def refresh_token_if_needed(account: Account) -> None:
-    """필요한 경우 토큰을 갱신"""
-    if should_refresh_token(account.access_token_expired):
-        access_token, expires_at = get_kis_access_token(
-            app_key=account.app_key,
-            app_secret=account.app_secret,
-            acnt_type=account.acnt_type
-        )
-        account.kis_access_token = access_token
-        account.access_token_expired = expires_at
 
 @router.get("/", response_model=AccountsPublic)
 def read_accounts(
@@ -718,3 +843,75 @@ async def fetch_daily_trades(
             status_code=500,
             detail=f"KIS API 호출 실패: {str(e)}"
         )
+
+async def fetch_account_balance(account: Account) -> dict:
+    """KIS API를 통해 계좌 잔고를 조회"""
+    base_url = "https://openapi.koreainvestment.com:9443" if account.acnt_type == "live" else "https://openapivts.koreainvestment.com:29443"
+    
+    try:
+        response = requests.get(
+            f"{base_url}/uapi/domestic-stock/v1/trading/inquire-balance",
+            params={
+                "CANO": account.cano,
+                "ACNT_PRDT_CD": account.acnt_prdt_cd,
+                "AFHR_FLPR_YN": "N",
+                "OFL_YN": "",
+                "INQR_DVSN": "02",
+                "UNPR_DVSN": "01",
+                "FUND_STTL_ICLD_YN": "N",
+                "FNCG_AMT_AUTO_RDPT_YN": "N",
+                "PRCS_DVSN": "00",
+                "CTX_AREA_FK100": "",
+                "CTX_AREA_NK100": ""
+            },
+            headers={
+                "authorization": f"Bearer {account.kis_access_token}",
+                "appkey": account.app_key,
+                "appsecret": account.app_secret,
+                "tr_id": "VTTC8434R" if account.acnt_type == "paper" else "TTTC8434R",
+                "content-type": "application/json"
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+        
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"KIS API 잔고 조회 실패: {str(e)}"
+        )
+
+@router.get("/{account_id}/minutely-balances", response_model=List[MinutelyBalance])
+async def get_minutely_balances(
+    account_id: uuid.UUID,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    session: SessionDep = None,
+    current_user: CurrentUser = None,
+) -> Any:
+    """특정 계좌의 분당 잔고 데이터를 조회"""
+    # 권한 확인
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not current_user.is_superuser and (account.owner_id != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    # 기본값으로 오늘 데이터 조회
+    if not end_time:
+        end_time = datetime.now()
+    if not start_time:
+        start_time = end_time.replace(hour=9, minute=0, second=0, microsecond=0)
+        if end_time.hour >= 15 and end_time.minute >= 30:
+            end_time = end_time.replace(hour=15, minute=30, second=0, microsecond=0)
+
+    # 쿼리 생성
+    query = session.query(MinutelyBalance).filter(
+        MinutelyBalance.account_id == account_id,
+        MinutelyBalance.timestamp >= start_time,
+        MinutelyBalance.timestamp <= end_time
+    )
+
+    # 정렬 및 실행
+    balances = query.order_by(MinutelyBalance.timestamp.asc()).all()
+    return balances

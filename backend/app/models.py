@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint, text
+from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint, text, JSON
 
 
 # Shared properties
@@ -125,7 +125,7 @@ class AccountUpdate(SQLModel):
     app_secret: str | None = Field(default=None, max_length=1024)
     discord_webhook_url: str | None = Field(default=None, max_length=255)
     kis_access_token: str | None = Field(default=None, max_length=1024)
-    access_token_expired: datetime | None = None
+    access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
 
 class DailyTradeBase(SQLModel):
     # output1 필드
@@ -211,6 +211,7 @@ class Account(AccountBase, table=True):
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
     daily_trades: list["DailyTrade"] = Relationship(back_populates="account", cascade_delete=True)
+    minutely_balances: list["MinutelyBalance"] = Relationship(back_populates="account", cascade_delete=True)
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -249,3 +250,38 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+
+class MinutelyBalance(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    account_id: uuid.UUID = Field(foreign_key="account.id", nullable=False)
+    account: "Account" = Relationship(back_populates="minutely_balances")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column(TIMESTAMP(timezone=False), server_default=text("CURRENT_TIMESTAMP"))
+    )
+    
+    # 계좌 요약 정보
+    total_balance: float = Field(description="예수금총금액")
+    available_balance: float = Field(description="D+2 예수금")
+    total_assets: float = Field(description="총평가금액")
+    purchase_amount: float = Field(description="매입금액합계금액")
+    eval_amount: float = Field(description="평가금액합계금액")
+    profit_loss: float = Field(description="평가손익합계금액")
+    profit_loss_rate: float = Field(description="수익률")
+    asset_change_amount: float = Field(description="자산증감금액")
+    asset_change_rate: float = Field(description="자산증감수익율")
+
+    # 보유종목 정보 (JSON 형태로 저장)
+    holdings: list[dict] | None = Field(
+        default=None,
+        description="보유종목 상세 정보",
+        sa_column=Column(JSON)
+    )
+
+    class Config:
+        table_name = "minutely_balances"
+
+    __table_args__ = (
+        Index('ix_minutely_balances_account_timestamp', 'account_id', 'timestamp'),
+    )
