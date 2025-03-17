@@ -229,7 +229,21 @@ class AccountPublic(AccountBase):
 class AccountsPublic(SQLModel):
     data: list[AccountPublic]
     count: int
-#######################################################################
+
+class DailyTradeResponse(SQLModel):
+    message: str
+    updated_count: int
+    start_date: str
+    end_date: str
+    error_count: int
+    errors: list[str]
+
+class BalanceResponse(SQLModel):
+    rt_cd: str | None = None
+    msg1: str | None = None
+    msg_cd: str | None = None
+    output1: list[dict] | None = Field(default=None, description="보유종목 상세내역")
+    output2: list[dict] | None = Field(default=None, description="계좌잔고 종합")
 
 # Generic message
 class Message(SQLModel):
