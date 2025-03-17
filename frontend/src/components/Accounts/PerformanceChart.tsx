@@ -131,14 +131,22 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
         mode: 'index',
         intersect: false,
         callbacks: {
-          label: (context) => {
-            const value = context.parsed.y;
-            return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+          label: (context: any) => {
+            if (typeof context.parsed?.y === 'number') {
+              const value = context.parsed.y;
+              return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+            }
+            return '';
           },
         },
         backgroundColor: 'white',
         titleColor: '#718096',
-        bodyColor: value => value.parsed.y >= 0 ? '#E53E3E' : '#3182CE',
+        bodyColor: (context: any) => {
+          if (typeof context.parsed?.y === 'number') {
+            return context.parsed.y >= 0 ? '#E53E3E' : '#3182CE';
+          }
+          return '#718096';
+        },
         borderColor: '#E2E8F0',
         borderWidth: 1,
         padding: 12,
@@ -151,7 +159,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
     scales: {
       x: {
         grid: {
-          color: '#E2E8F0',
+          display: false
         },
         ticks: {
           color: '#718096',
@@ -164,7 +172,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
       },
       y: {
         grid: {
-          color: '#E2E8F0',
+          // color: '#E2E8F0',
+          display: false
         },
         ticks: {
           color: '#718096',

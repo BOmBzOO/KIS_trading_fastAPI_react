@@ -18,6 +18,7 @@ from app.constants import (
 from app.core.db import engine
 from app.models import Account, MinutelyBalance
 from app.api.services.kis_api import get_kis_access_token, inquire_balance_from_kis
+from app.api.routes.accounts import update_daily_trades
 
 # 로깅 설정
 logging.basicConfig(
@@ -233,6 +234,61 @@ async def check_and_save_balances():
         
         await asyncio.sleep(1)
 
+async def update_daily_trades():
+    """한국 시간 오전 3시에 모든 계정의 일별 거래 내역을 업데이트"""
+    kst = timezone('Asia/Seoul')
+    
+    while True:
+        try:
+            now = datetime.now(kst)
+            
+            # 다음 실행 시간 계산 (다음 날 오전 3시)
+            next_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
+            if now.hour >= 3:
+                next_run += timedelta(days=1)
+            
+            # 다음 실행까지 대기
+            wait_seconds = (next_run - now).total_seconds()
+            await asyncio.sleep(wait_seconds)
+            
+            # 활성 계정 조회
+            with Session(engine) as session:
+                statement = select(Account).where(Account.is_active == True)
+                accounts = session.exec(statement).all()
+                
+                success_count = 0
+                failed_accounts = []
+                
+                for account in accounts:
+                    try:
+                        # 7일치 데이터 업데이트
+                        end_date = datetime.now(kst).strftime("%Y-%m-%d")
+                        start_date = (datetime.now(kst) - timedelta(days=7)).strftime("%Y-%m-%d")
+                        
+                        await update_daily_trades(
+                            account_id=account.id,
+                            start_date=start_date,
+                            end_date=end_date,
+                            session=session
+                        )
+                        success_count += 1
+                        
+                    except Exception as e:
+                        failed_accounts.append((account.acnt_name, str(e)))
+                        continue
+                
+                if success_count > 0:
+                    logger.info(f"일별 거래 내역 업데이트 완료 - 총 {success_count}개 계좌")
+                
+                if failed_accounts:
+                    for acnt_name, error in failed_accounts:
+                        logger.error(f"일별 거래 내역 업데이트 실패 - 계정: {acnt_name}, 에러: {error}")
+                
+        except Exception as e:
+            logger.error(f"일별 거래 내역 업데이트 중 오류 발생: {str(e)}")
+        
+        await asyncio.sleep(60)  # 1분 대기 후 다음 체크
+
 def start_background_tasks():
     """백그라운드 태스크 시작"""
     logger.info("백그라운드 작업 시작")
@@ -247,6 +303,11 @@ def start_background_tasks():
     balance_task = loop.create_task(check_and_save_balances())
     background_tasks.add(balance_task)
     balance_task.add_done_callback(background_tasks.discard)
+    
+    # 일별 거래 내역 업데이트 태스크 시작
+    daily_trades_task = loop.create_task(update_daily_trades())
+    background_tasks.add(daily_trades_task)
+    daily_trades_task.add_done_callback(background_tasks.discard)
 
 def stop_background_tasks():
     """백그라운드 태스크 중지"""
