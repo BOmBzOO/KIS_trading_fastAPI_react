@@ -20,7 +20,8 @@ from app.core.db import engine, get_session
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         logging.StreamHandler(),
         logging.FileHandler('background_tasks.log')
@@ -88,13 +89,13 @@ async def periodic_token_check():
                         account.access_token_expired = expires_at
                         refresh_count += 1
                 except Exception as e:
-                    logger.error(f"Token refresh failed for {account.acnt_name}")
+                    logger.error(f"{account.acnt_name}: 토큰 갱신 실패")
             
             if refresh_count > 0:
-                logger.info(f"Refreshed {refresh_count} tokens")
+                logger.info(f"토큰 갱신 완료: {refresh_count}개")
             session.commit()
         except Exception as e:
-            logger.error(f"Token check error: {str(e)}")
+            logger.error(f"토큰 체크 오류: {str(e)}")
         
         await asyncio.sleep(TOKEN_CHECK_INTERVAL)
 
@@ -102,17 +103,18 @@ async def periodic_balance_check():
     """주기적으로 모든 활성화된 계정의 잔고를 조회하고 저장"""
     global background_task_running
     retry_counts = {}  # 계정별 재시도 횟수 추적
+    last_check_time = datetime.now()
     
     while background_task_running:
-        try:
-            current_time = datetime.now()
-            # # 장 운영 시간(9:00 ~ 15:30)에만 실행
-            # if current_time.hour < 9 or (current_time.hour == 15 and current_time.minute >= 30) or current_time.hour > 15:
-            #     logger.info(f"Outside trading hours ({current_time.strftime('%H:%M')}), skipping balance check")
-            #     await asyncio.sleep(BALANCE_CHECK_INTERVAL)
-            #     continue
+        current_time = datetime.now()
+        time_diff = (current_time - last_check_time).total_seconds()
+        
+        if time_diff < BALANCE_CHECK_INTERVAL:
+            # 다음 체크 시간까지 대기
+            await asyncio.sleep(1)  # 1초마다 체크
+            continue
             
-            logger.info(f"Starting periodic balance check at {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        try:
             session = next(get_session())
             statement = select(Account).where(Account.is_active == True)
             accounts = session.exec(statement).all()
@@ -160,7 +162,7 @@ async def periodic_balance_check():
                         )
                         
                         session.add(minutely_balance)
-                        logger.info(f"Account {account.acnt_name}: Assets {minutely_balance.total_assets:,.0f}원 ({minutely_balance.profit_loss_rate:+.1f}%)")
+                        logger.info(f"{account.acnt_name}: {minutely_balance.total_assets:,.0f}원 ({minutely_balance.profit_loss_rate:+.1f}%)")
                         success_count += 1
                         retry_counts[account.id] = 0  # 성공 시 재시도 횟수 초기화
                         
@@ -169,43 +171,43 @@ async def periodic_balance_check():
                     retry_counts[account.id] = retry_counts.get(account.id, 0) + 1
                     
                     if retry_counts[account.id] <= MAX_RETRIES:
-                        logger.error(f"Balance check failed for {account.acnt_name} (Try {retry_counts[account.id]}/{MAX_RETRIES})")
+                        logger.error(f"{account.acnt_name}: 잔고 조회 실패 (시도 {retry_counts[account.id]}/{MAX_RETRIES})")
                         if retry_counts[account.id] < MAX_RETRIES:
                             await asyncio.sleep(5)  # 5초 대기 후 다음 시도
                             continue
                     else:
-                        logger.error(f"Max retries reached for {account.acnt_name}")
+                        logger.error(f"{account.acnt_name}: 최대 재시도 횟수 초과")
                     continue
             
             try:
                 session.commit()
                 if success_count > 0 or error_count > 0:
-                    logger.info(f"Balance check completed: {success_count} success, {error_count} errors")
+                    logger.info(f"잔고 조회 완료: 성공 {success_count}, 실패 {error_count}")
             except Exception as e:
-                logger.error("Failed to save balance data")
+                logger.error("잔고 데이터 저장 실패")
                 session.rollback()
             
         except Exception as e:
-            logger.error(f"Balance check error: {str(e)}")
+            logger.error(f"잔고 조회 오류: {str(e)}")
         
-        await asyncio.sleep(BALANCE_CHECK_INTERVAL)
+        # 마지막 체크 시간 업데이트
+        last_check_time = current_time
 
 @router.on_event("startup")
 async def start_background_tasks():
     """애플리케이션 시작 시 백그라운드 태스크 시작"""
     global background_task_running
     background_task_running = True
-    logger.info("Starting background tasks...")
+    logger.info("백그라운드 작업 시작")
     asyncio.create_task(periodic_token_check())
     asyncio.create_task(periodic_balance_check())
-    logger.info("Background tasks started successfully")
 
 @router.on_event("shutdown")
 async def stop_background_tasks():
     """애플리케이션 종료 시 백그라운드 태스크 중지"""
     global background_task_running
     background_task_running = False
-    logger.info("Background tasks stopped")
+    logger.info("백그라운드 작업 중지")
 
 def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple[str, datetime]:
     """
