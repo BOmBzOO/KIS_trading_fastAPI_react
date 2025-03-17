@@ -18,7 +18,7 @@ from app.constants import (
 from app.core.db import engine
 from app.models import Account, MinutelyBalance
 from app.api.services.kis_api import get_kis_access_token, inquire_balance_from_kis
-from app.api.routes.accounts import update_daily_trades
+from app.api.services.trade_service import update_account_daily_trades
 
 # 로깅 설정
 logging.basicConfig(
@@ -256,8 +256,8 @@ async def update_daily_trades():
                 statement = select(Account).where(Account.is_active == True)
                 accounts = session.exec(statement).all()
                 
-                success_count = 0
-                failed_accounts = []
+                total_success_count = 0
+                all_failed_accounts = []
                 
                 for account in accounts:
                     try:
@@ -265,23 +265,25 @@ async def update_daily_trades():
                         end_date = datetime.now(kst).strftime("%Y-%m-%d")
                         start_date = (datetime.now(kst) - timedelta(days=7)).strftime("%Y-%m-%d")
                         
-                        await update_daily_trades(
+                        success_count, failed_accounts = await update_account_daily_trades(
                             account_id=account.id,
                             start_date=start_date,
                             end_date=end_date,
                             session=session
                         )
-                        success_count += 1
+                        
+                        total_success_count += success_count
+                        all_failed_accounts.extend(failed_accounts)
                         
                     except Exception as e:
-                        failed_accounts.append((account.acnt_name, str(e)))
+                        all_failed_accounts.append((account.acnt_name, str(e)))
                         continue
                 
-                if success_count > 0:
-                    logger.info(f"일별 거래 내역 업데이트 완료 - 총 {success_count}개 계좌")
+                if total_success_count > 0:
+                    logger.info(f"일별 거래 내역 업데이트 완료 - 총 {total_success_count}개 거래")
                 
-                if failed_accounts:
-                    for acnt_name, error in failed_accounts:
+                if all_failed_accounts:
+                    for acnt_name, error in all_failed_accounts:
                         logger.error(f"일별 거래 내역 업데이트 실패 - 계정: {acnt_name}, 에러: {error}")
                 
         except Exception as e:

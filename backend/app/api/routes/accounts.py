@@ -16,7 +16,7 @@ from app.api.services.background_tasks import (
     start_background_tasks, stop_background_tasks, 
     should_refresh_token
 )
-from app.api.services.trade_service import process_trade_data
+from app.api.services.trade_service import process_trade_data, update_account_daily_trades
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -252,9 +252,6 @@ async def update_daily_trades(
     current_user: CurrentUser = None,
 ) -> Any:
     """일별 주문체결 내역 업데이트"""
-    errors = []
-    updated_count = 0
-
     try:
         # 날짜 범위 설정
         if not end_date:
@@ -274,57 +271,21 @@ async def update_daily_trades(
             refresh_token_if_needed(account)
             session.commit()
 
-        # KIS API 호출
-        trade_data = await inquire_daily_ccld_from_kis(account, start_date, end_date)
-        
-        if not trade_data.get("output1"):
-            return DailyTradeResponse(
-                message="조회된 거래 내역이 없습니다.",
-                updated_count=0,
-                start_date=start_date,
-                end_date=end_date,
-                error_count=0,
-                errors=[]
-            )
-
-        # DB 업데이트
-        try:
-            for trade in process_trade_data(trade_data, str(account_id)):
-                try:
-                    statement = select(DailyTrade).where(
-                        DailyTrade.account_id == account_id,
-                        DailyTrade.order_date == trade.order_date,
-                        DailyTrade.order_no == trade.order_no
-                    )
-                    existing_trade = session.exec(statement).first()
-
-                    if existing_trade:
-                        # 기존 거래 업데이트
-                        for key, value in trade.model_dump().items():
-                            setattr(existing_trade, key, value)
-                    else:
-                        # 새 거래 추가
-                        session.add(trade)
-
-                    updated_count += 1
-
-                except Exception as e:
-                    errors.append(f"거래 데이터 처리 실패 (주문번호: {trade.order_no}): {str(e)}")
-                    continue
-
-            session.commit()
-
-        except Exception as e:
-            session.rollback()
-            raise HTTPException(status_code=500, detail=f"데이터베이스 저장 실패: {str(e)}")
-
-        return DailyTradeResponse(
-            message=f"일별 주문체결 내역이 업데이트되었습니다. (총 {updated_count}건)",
-            updated_count=updated_count,
+        # 거래 내역 업데이트
+        success_count, failed_accounts = await update_account_daily_trades(
+            account_id=account_id,
             start_date=start_date,
             end_date=end_date,
-            error_count=len(errors),
-            errors=errors
+            session=session
+        )
+
+        return DailyTradeResponse(
+            message=f"일별 주문체결 내역이 업데이트되었습니다. (총 {success_count}건)",
+            updated_count=success_count,
+            start_date=start_date,
+            end_date=end_date,
+            error_count=len(failed_accounts),
+            errors=[error for _, error in failed_accounts]
         )
 
     except HTTPException as e:

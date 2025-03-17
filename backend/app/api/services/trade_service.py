@@ -1,6 +1,9 @@
 from datetime import datetime
 from sqlmodel import select
 from app.models import DailyTrade, Account
+from uuid import UUID
+from sqlmodel import Session
+from app.api.services.kis_api import inquire_daily_ccld_from_kis
 
 def process_trade_data(response_data: dict, account_id: str) -> list[DailyTrade]:
     """거래 데이터를 처리하여 DailyTrade 객체 리스트로 변환"""
@@ -66,3 +69,56 @@ def process_trade_data(response_data: dict, account_id: str) -> list[DailyTrade]
         trades.append(daily_trade)
 
     return trades 
+
+async def update_account_daily_trades(
+    account_id: UUID,
+    start_date: str,
+    end_date: str,
+    session: Session
+) -> tuple[int, list[tuple[str, str]]]:
+    """특정 계정의 일별 거래 내역을 업데이트"""
+    success_count = 0
+    failed_accounts = []
+    
+    try:
+        account = session.get(Account, account_id)
+        if not account:
+            return 0, [("Unknown", f"Account not found: {account_id}")]
+            
+        # KIS API 호출
+        trade_data = await inquire_daily_ccld_from_kis(account, start_date, end_date)
+        
+        if not trade_data.get("output1"):
+            return 0, []
+            
+        # 거래 내역 처리 및 저장
+        from app.api.routes.accounts import process_trade_data
+        
+        for trade in process_trade_data(trade_data, str(account_id)):
+            try:
+                statement = select(DailyTrade).where(
+                    DailyTrade.account_id == account_id,
+                    DailyTrade.order_date == trade.order_date,
+                    DailyTrade.order_no == trade.order_no
+                )
+                existing_trade = session.exec(statement).first()
+
+                if existing_trade:
+                    # 기존 거래 업데이트
+                    for key, value in trade.model_dump().items():
+                        setattr(existing_trade, key, value)
+                else:
+                    # 새 거래 추가
+                    session.add(trade)
+
+                success_count += 1
+
+            except Exception as e:
+                failed_accounts.append((account.acnt_name, f"거래 데이터 처리 실패 (주문번호: {trade.order_no}): {str(e)}"))
+                continue
+
+        session.commit()
+        return success_count, failed_accounts
+        
+    except Exception as e:
+        return 0, [(account.acnt_name if account else "Unknown", str(e))] 
