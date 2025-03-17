@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -13,46 +13,11 @@ import {
   Button,
   Text,
   Flex,
-  ButtonGroup
+  Spinner
 } from '@chakra-ui/react';
 import { FaSync } from 'react-icons/fa';
-
-// 가상 데이터 생성 함수
-const generateMockData = (days: number) => {
-  const data = [];
-  let value = 0;
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - (days - i - 1));
-    
-    value += (Math.random() - 0.5) * 2; // -1 ~ 1 사이의 변동
-    
-    data.push({
-      date: formatDate(date, days),
-      value: parseFloat(value.toFixed(2))
-    });
-  }
-  
-  return data;
-};
-
-// 날짜 포맷 함수
-const formatDate = (date: Date, totalDays: number) => {
-  if (totalDays <= 7) {
-    // 일별: "12/31" 형식
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  } else if (totalDays <= 31) {
-    // 주별: "12월 4주" 형식
-    const week = Math.ceil(date.getDate() / 7);
-    return `${date.getMonth() + 1}월 ${week}주`;
-  } else {
-    // 월별: "2023/12" 형식
-    return `${date.getFullYear()}/${date.getMonth() + 1}`;
-  }
-};
-
-type Period = 'daily' | 'weekly' | 'monthly';
+import { useQuery } from '@tanstack/react-query';
+import { AccountsService } from '@/client/sdk.gen';
 
 interface PerformanceChartProps {
   accountId: string;
@@ -92,38 +57,100 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId }) => {
-  const [period, setPeriod] = useState<Period>('daily');
   const [isLoading, setIsLoading] = useState(false);
-  const [chartData, setChartData] = useState(() => ({
-    daily: generateMockData(7),
-    weekly: generateMockData(12),
-    monthly: generateMockData(12)
-  }));
   
-  const gridColor = '#E2E8F0';
-  const textColor = '#718096';
-  const lineColor = '#4299E1';
+  const { data: balanceHistory, refetch } = useQuery({
+    queryKey: ['balanceHistory', accountId],
+    queryFn: async () => {
+      // 한국 시간 기준 오늘 날짜 설정
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국 시간 오프셋 (9시간)
+      const today = new Date(now.getTime() + kstOffset * 60000);
+      today.setHours(0, 0, 0, 0);
+      const utcToday = new Date(today.getTime() - kstOffset * 60000); // UTC 기준 오늘 시작 시간
+
+      const response = await AccountsService.inquireBalanceFromDb({ 
+        account_id: accountId,
+        start_time: utcToday.toISOString(),
+        end_time: new Date().toISOString()
+      });
+      return response;
+    },
+    refetchInterval: 60 * 1000 // 1분마다 자동 새로고침
+  });
+
+  useEffect(() => {
+    if (!balanceHistory) {
+      console.error('잔고 이력 조회 실패');
+    } else {
+      console.log('잔고 이력 데이터:', balanceHistory);
+    }
+  }, [balanceHistory]);
 
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 실제 API 연동 시 accountId를 사용하여 해당 계좌의 데이터를 가져옵니다
-      console.log(`Fetching data for account: ${accountId}`);
-      const newData = {
-        daily: generateMockData(7),
-        weekly: generateMockData(12),
-        monthly: generateMockData(12)
-      };
-      setChartData(newData);
-    } catch (error) {
-      console.error('Failed to refresh data:', error);
+      await refetch();
+    } catch (error: unknown) {
+      console.error('데이터 새로고침 중 오류 발생:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [accountId]);
+  }, [refetch]);
 
-  const getData = () => chartData[period];
-  
+  const chartData = React.useMemo(() => {
+    if (!balanceHistory) return [];
+
+    // 시간순으로 정렬
+    const sortedData = [...balanceHistory].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    // 한국 시간 기준 오늘 날짜 설정
+    const now = new Date();
+    const kstOffset = 9 * 60; // 한국 시간 오프셋 (9시간)
+    const today = new Date(now.getTime() + kstOffset * 60000);
+    today.setHours(0, 0, 0, 0);
+    const utcToday = new Date(today.getTime() - kstOffset * 60000); // UTC 기준 오늘 시작 시간
+
+    // 오늘 날짜의 데이터만 필터링 (UTC 기준)
+    const todayData = sortedData.filter(item => {
+      const itemDate = new Date(item.timestamp);
+      return itemDate >= utcToday;
+    });
+
+    if (todayData.length === 0) return [];
+
+    // 시작 시점의 평가금액을 기준으로 설정
+    const initialEvaluationAmount = todayData[0].evaluation_amount || 0;
+    
+    return todayData.map((item) => {
+      const currentEvaluationAmount = item.evaluation_amount || 0;
+      
+      // 금일 수익률 계산 (시작 시점 대비 변화율)
+      const dailyReturnRate = initialEvaluationAmount === 0 
+        ? 0 
+        : ((currentEvaluationAmount - initialEvaluationAmount) / initialEvaluationAmount) * 100;
+
+      // UTC 시간을 KST로 변환하여 표시
+      const utcDate = new Date(item.timestamp);
+      const kstDate = new Date(utcDate.getTime() + kstOffset * 60000);
+
+      return {
+        date: kstDate.toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }),
+        value: Number(dailyReturnRate.toFixed(2))
+      };
+    });
+  }, [balanceHistory]);
+
+  const gridColor = '#E2E8F0';
+  const textColor = '#718096';
+  const lineColor = '#4299E1';
+
   return (
     <Box h="400px" w="100%" p={1}>
       <Flex mb={4} justify="space-between" align="center">
@@ -139,63 +166,50 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
             <Text>새로고침</Text>
           </Flex>
         </Button>
-        
-        <ButtonGroup size="sm" variant="solid" attached>
-          <Button
-            onClick={() => setPeriod('daily')}
-            colorScheme={period === 'daily' ? 'blue' : 'gray'}
-          >
-            일별
-          </Button>
-          <Button
-            onClick={() => setPeriod('weekly')}
-            colorScheme={period === 'weekly' ? 'blue' : 'gray'}
-          >
-            주별
-          </Button>
-          <Button
-            onClick={() => setPeriod('monthly')}
-            colorScheme={period === 'monthly' ? 'blue' : 'gray'}
-          >
-            월별
-          </Button>
-        </ButtonGroup>
       </Flex>
       
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart 
-          data={getData()}
-          margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-        >
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke={gridColor}
-          />
-          <XAxis 
-            dataKey="date" 
-            tick={{ fontSize: 12, fill: textColor }}
-            tickLine={{ stroke: gridColor }}
-            axisLine={{ stroke: gridColor }}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: textColor }}
-            tickLine={{ stroke: gridColor }}
-            axisLine={{ stroke: gridColor }}
-            tickFormatter={(value) => `${value}%`}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={lineColor}
-            strokeWidth={2}
-            dot={{ r: 3, fill: lineColor }}
-            activeDot={{ r: 5, fill: lineColor }}
-            name="수익률 (%)"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      {isLoading ? (
+        <Flex justify="center" align="center" h="300px">
+          <Spinner />
+        </Flex>
+      ) : (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart 
+            data={chartData}
+            margin={{ top: 5, right: 5, left: 0, bottom: 40 }}
+          >
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke={gridColor}
+            />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 12, fill: textColor }}
+              tickLine={{ stroke: gridColor }}
+              axisLine={{ stroke: gridColor }}
+              angle={-45} // 기울기를 없애고 정렬
+              textAnchor="end" // 중앙 정렬
+              height={5} // 라벨 높이 조정
+            />
+            <YAxis
+              tick={{ fontSize: 12, fill: textColor }}
+              tickLine={{ stroke: gridColor }}
+              axisLine={{ stroke: gridColor }}
+              tickFormatter={(value) => `${value}%`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={lineColor}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 5, fill: lineColor }}
+              name="수익률 (%)"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </Box>
   );
 }; 

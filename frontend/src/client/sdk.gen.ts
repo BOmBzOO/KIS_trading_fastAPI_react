@@ -57,7 +57,9 @@ import type {
   AccountsUpdateAccountData,
   AccountsUpdateAccountResponse,
   AccountsDeleteAccountData,
-  AccountsDeleteAccountResponse
+  AccountsDeleteAccountResponse,
+  AccountsReadMinutelyBalancesData,
+  AccountsReadMinutelyBalancesResponse
 } from "./types.gen"
 
 export class ItemsService {
@@ -716,6 +718,35 @@ export class AccountsService {
       url: "/api/v1/accounts/{account_id}/token_refresh",
       path: {
         account_id: accountId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Inquire Minutely Balances
+   * Get minutely balance data from database.
+   * @param data The data for the request.
+   * @param data.account_id
+   * @param data.start_time Optional start time in ISO format
+   * @param data.end_time Optional end time in ISO format
+   * @returns Array of minutely balance data
+   * @throws ApiError
+   */
+  public static inquireBalanceFromDb(
+    data: AccountsReadMinutelyBalancesData,
+  ): CancelablePromise<AccountsReadMinutelyBalancesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/accounts/{account_id}/inquire_balance_from_db",
+      path: {
+        account_id: data.account_id,
+      },
+      query: {
+        start_time: data.start_time,
+        end_time: data.end_time,
       },
       errors: {
         422: "Validation Error",

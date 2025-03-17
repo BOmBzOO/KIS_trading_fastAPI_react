@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
+from pytz import timezone
 
 from sqlmodel import select, Session
 
@@ -182,6 +183,7 @@ async def check_and_save_balances():
                                 # MinutelyBalance 객체 생성 및 저장
                                 minutely_balance = MinutelyBalance(
                                     account_id=account.id,
+                                    timestamp=datetime.now().astimezone(timezone('Asia/Seoul')),
                                     total_balance=float(output2.get("dnca_tot_amt", 0)),
                                     available_balance=float(output2.get("prvs_rcdl_excc_amt", 0)),
                                     total_assets=float(output2.get("tot_evlu_amt", 0)),

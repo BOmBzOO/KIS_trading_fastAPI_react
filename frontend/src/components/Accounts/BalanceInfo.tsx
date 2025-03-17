@@ -8,9 +8,10 @@ export function BalanceInfo({ balanceInfo }: BalanceInfoProps) {
   const output2 = balanceInfo?.output2?.[0] || {}
   
   const calculateReturnRate = (pchsAmt: number, evluPflsAmt: number) => {
-    if (pchsAmt === 0) return '0.00'
+    if (!pchsAmt || pchsAmt === 0 || isNaN(pchsAmt)) return '0.00'
+    if (!evluPflsAmt || isNaN(evluPflsAmt)) return '0.00'
     const returnRate = (evluPflsAmt / pchsAmt) * 100
-    return returnRate.toFixed(2)
+    return isNaN(returnRate) ? '0.00' : returnRate.toFixed(2)
   }
   
   const balanceItems = [

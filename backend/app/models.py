@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
+from pytz import timezone
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import TIMESTAMP, Column, Index, UniqueConstraint, text, JSON
-
 
 # Shared properties
 class UserBase(SQLModel):
@@ -272,7 +272,7 @@ class MinutelyBalance(SQLModel, table=True):
     account: "Account" = Relationship(back_populates="minutely_balances")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
-        sa_column=Column(TIMESTAMP(timezone=False), server_default=text("CURRENT_TIMESTAMP"))
+        sa_column=Column(TIMESTAMP(timezone=timezone('Asia/Seoul')), server_default=text("CURRENT_TIMESTAMP"))
     )
     
     # 계좌 요약 정보

@@ -41,7 +41,7 @@ export function AccountDetail({ portfolio, balanceInfo, isLoading }: AccountDeta
           }}
           height="400px"
         >
-          <PerformanceChart accountId={portfolio.name} />
+          <PerformanceChart accountId={portfolio.accountId} />
         </Box>
       </SimpleGrid>
 

@@ -353,3 +353,27 @@ export interface PortfolioItem {
     trend: "up" | "down"
   }[]
 }
+
+export interface MinutelyBalance {
+  id: string
+  account_id: string
+  timestamp: string
+  total_assets: number
+  available_cash: number
+  deposit_balance: number
+  d2_deposit_balance: number
+  evaluation_amount: number
+  purchase_amount: number
+  evaluation_profit_loss: number
+  profit_loss_rate: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AccountsReadMinutelyBalancesData {
+  account_id: string
+  start_time?: string
+  end_time?: string
+}
+
+export type AccountsReadMinutelyBalancesResponse = MinutelyBalance[]
