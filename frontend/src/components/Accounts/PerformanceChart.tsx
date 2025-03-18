@@ -292,7 +292,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   return (
     <Box h="400px" w="100%" p={1} overflow="hidden">
       <Flex mb={4} direction={isMobile ? "column" : "row"} gap={2} justify="flex-end" align="center">
-        <ButtonGroup size="xs" variant="outline" spacing={2}>
+        <ButtonGroup size="xs" variant="outline" gap={2}>
           {['minutely', 'daily', 'weekly', 'monthly', 'yearly'].map((period) => (
             <Button
               key={period}
