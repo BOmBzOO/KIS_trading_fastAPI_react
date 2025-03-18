@@ -24,15 +24,15 @@ export function AccountDetail({ portfolio, balanceInfo, isLoading }: AccountDeta
   }
 
   return (
-    <Flex direction="column" gap={6}>
+    <Flex direction="column" gap={4}>
       {/* 상단: 잔고와 차트 */}
-      <SimpleGrid columns={{ base: 1, xl: 2 }} gap={6}>
+      <SimpleGrid columns={{ base: 1, xl: 2 }} gap={4}>
         {/* 잔고 정보 */}
         <BalanceInfo balanceInfo={balanceInfo} />
 
         {/* 차트 */}
         <Box 
-          p={{ base: 2, md: 6 }}
+          p={{ base: 2, md: 4 }}
           borderRadius="xl"
           border="2px solid var(--chakra-colors-gray-200)"
           backgroundColor="var(--chakra-colors-chakra-bg)"

@@ -246,25 +246,39 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
         grid: {
           display: false
         },
+        border: {
+          color: '#718096',
+          width: 1
+        },
         ticks: {
           color: '#718096',
-          font: {
-            size: 12,
-          },
-          maxRotation: 45,
-          minRotation: 45,
+          font: { size: isMobile ? 10 : 11 },
+          maxRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
+          minRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
+          padding: 8,
+          autoSkip: true,
+          maxTicksLimit: selectedPeriod === 'minutely' ? 8 : 6
         },
       },
       y: {
         grid: {
           display: false
         },
+        border: {
+          color: '#718096',
+          width: 1
+        },
         ticks: {
           color: '#718096',
-          font: {
-            size: 12,
+          font: { size: isMobile ? 10 : 11 },
+          callback: (value: string | number) => {
+            const numValue = Number(value);
+            if (Math.abs(numValue) >= 100) return `${numValue.toFixed(0)}%`;
+            if (Math.abs(numValue) >= 10) return `${numValue.toFixed(1)}%`;
+            return `${numValue.toFixed(2)}%`;
           },
-          callback: (value: string | number) => `${Number(value).toFixed(2)}%`,
+          padding: 8,
+          maxTicksLimit: 6
         },
       },
     },
@@ -278,15 +292,35 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   return (
     <Box h="400px" w="100%" p={1} overflow="hidden">
       <Flex mb={4} direction={isMobile ? "column" : "row"} gap={2} justify="flex-end" align="center">
-        <ButtonGroup size="sm" attached variant="outline">
+        <ButtonGroup size="xs" variant="outline" attached borderRadius="full">
           {['minutely', 'daily', 'weekly', 'monthly', 'yearly'].map((period) => (
             <Button
               key={period}
               onClick={() => setSelectedPeriod(period as Period)}
               colorScheme={selectedPeriod === period ? 'blue' : 'gray'}
-              variant={selectedPeriod === period ? 'solid' : 'outline'}
-              px={isMobile ? 2 : 4}
-              fontSize={isMobile ? "xs" : "sm"}
+              variant={selectedPeriod === period ? 'solid' : 'ghost'}
+              px={isMobile ? 1.5 : 2}
+              fontSize="xs"
+              height="24px"
+              transition="all 0.15s"
+              _first={{ borderTopLeftRadius: 'full', borderBottomLeftRadius: 'full' }}
+              _last={{ borderTopRightRadius: 'full', borderBottomRightRadius: 'full' }}
+              _hover={{
+                bg: selectedPeriod === period ? 'blue.500' : 'gray.50',
+                color: selectedPeriod === period ? 'white' : 'gray.700',
+                transform: 'translateY(-1px)',
+                boxShadow: 'sm'
+              }}
+              _active={{
+                transform: 'translateY(0)',
+                boxShadow: 'none'
+              }}
+              _focus={{
+                boxShadow: 'none',
+                outline: 'none',
+                ring: 1,
+                ringColor: selectedPeriod === period ? 'blue.500' : 'gray.200'
+              }}
             >
               {getPeriodLabel(period as Period)}
             </Button>
@@ -305,19 +339,71 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
             scales: {
               x: {
                 grid: { display: false },
+                border: {
+                  color: '#718096',
+                  width: 1
+                },
                 ticks: {
                   color: '#718096',
-                  font: { size: isMobile ? 10 : 12 },
+                  font: { size: isMobile ? 10 : 11 },
                   maxRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
                   minRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
+                  padding: 8,
+                  autoSkip: true,
+                  maxTicksLimit: selectedPeriod === 'minutely' ? 8 : 6
                 },
               },
               y: {
                 grid: { display: false },
+                border: {
+                  color: '#718096',
+                  width: 1
+                },
                 ticks: {
                   color: '#718096',
-                  font: { size: isMobile ? 10 : 12 },
-                  callback: (value: string | number) => `${Number(value).toFixed(2)}%`,
+                  font: { size: isMobile ? 10 : 11 },
+                  callback: (value: string | number) => {
+                    const numValue = Number(value);
+                    if (Math.abs(numValue) >= 100) return `${numValue.toFixed(0)}%`;
+                    if (Math.abs(numValue) >= 10) return `${numValue.toFixed(1)}%`;
+                    return `${numValue.toFixed(2)}%`;
+                  },
+                  padding: 8,
+                  maxTicksLimit: 6
+                },
+              },
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                  label: (context: any) => {
+                    if (typeof context.parsed?.y === 'number') {
+                      const value = context.parsed.y;
+                      return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+                    }
+                    return '';
+                  },
+                },
+                backgroundColor: 'white',
+                titleColor: '#718096',
+                bodyColor: (context: any) => {
+                  if (typeof context.parsed?.y === 'number') {
+                    return context.parsed.y >= 0 ? '#E53E3E' : '#3182CE';
+                  }
+                  return '#718096';
+                },
+                borderColor: '#E2E8F0',
+                borderWidth: 1,
+                padding: 8,
+                bodyFont: {
+                  size: 12,
+                  weight: 'bold',
+                },
+                titleFont: {
+                  size: 11,
                 },
               },
             },

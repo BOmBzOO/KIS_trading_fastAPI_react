@@ -41,7 +41,7 @@ const SidebarItems = ({ onClose }: SidebarItemsProps) => {
           background: "gray.subtle",
         }}
         alignItems="center"
-        fontSize="sm"
+        fontSize="lg"
       >
         <Icon as={icon} alignSelf="center" />
         <Text ml={2}>{title}</Text>
@@ -51,7 +51,7 @@ const SidebarItems = ({ onClose }: SidebarItemsProps) => {
 
   return (
     <>
-      <Text fontSize="xs" px={4} py={2} fontWeight="bold">
+      <Text fontSize="lg" px={4} py={2} fontWeight="bold">
         Menu
       </Text>
       <Box>{listItems}</Box>

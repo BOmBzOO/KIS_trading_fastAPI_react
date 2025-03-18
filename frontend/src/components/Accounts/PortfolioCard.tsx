@@ -25,22 +25,41 @@ export function PortfolioCard({
   onClick,
   onRefreshToken
 }: PortfolioCardProps) {
+  const cardBg = useColorModeValue(
+    isSelected ? 'pastel.blue' : 'white',
+    isSelected ? 'blue.800' : 'gray.700'
+  )
+  const cardBorder = useColorModeValue(
+    isSelected ? 'blue.300' : 'pastel.gray',
+    isSelected ? 'blue.400' : 'gray.600'
+  )
+  const cardHoverBorder = useColorModeValue('pastel.blue', 'blue.400')
+  const titleColor = useColorModeValue('gray.800', 'gray.100')
+  const expiryColor = useColorModeValue('gray.500', 'gray.400')
+
   return (
     <Box
       p={4}
-      borderRadius="lg"
-      bg={isSelected ? (useColorModeValue('blue.50', 'blue.800')) : useColorModeValue('white', 'gray.700')}
+      borderRadius="xl"
+      bg={cardBg}
       border="1px solid"
-      borderColor={isSelected ? 'blue.300' : useColorModeValue('gray.200', 'gray.600')}
+      borderColor={cardBorder}
       cursor="pointer"
       onClick={onClick}
-      _hover={{ borderColor: useColorModeValue('blue.300', 'blue.400') }}
       position="relative"
       minW="250px"
+      zIndex={1}
+      _hover={{ 
+        borderColor: cardHoverBorder,
+        transform: 'translateY(-2px)',
+        transition: 'all 0.2s ease-in-out',
+        boxShadow: 'lg',
+        zIndex: 2
+      }}
     >
       <Stack gap={3}>
         <Flex justify="space-between" align="center">
-          <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'gray.100')}>
+          <Text fontSize="lg" fontWeight="bold" color={titleColor}>
             {name}
           </Text>
           {accessTokenExpired && (
@@ -54,6 +73,8 @@ export function PortfolioCard({
               display="flex"
               alignItems="center"
               gap="1"
+              bg="pastel.yellow"
+              _hover={{ bg: 'yellow.400' }}
             >
               <FaSync />
               갱신
@@ -63,17 +84,19 @@ export function PortfolioCard({
 
         <HStack wrap="wrap" gap={2}>
           <Badge
-            colorScheme={tags.includes("실전매매") ? "blue" : "purple"}
+            bg={tags.includes("실전매매") ? "pastel.blue" : "pastel.purple"}
+            color={tags.includes("실전매매") ? "blue.700" : "purple.700"}
           >
             {tags.includes("실전매매") ? "실전매매" : "가상매매"}
           </Badge>
           <Badge
-            colorScheme={tags.includes("활성") ? "green" : "gray"}
+            bg={tags.includes("활성") ? "pastel.green" : "pastel.gray"}
+            color={tags.includes("활성") ? "green.700" : "gray.700"}
           >
             {tags.includes("활성") ? "활성" : "비활성"}
           </Badge>
           {accessTokenExpired && (
-            <Badge colorScheme="red">
+            <Badge bg="pastel.red" color="red.700">
               토큰 갱신 필요
             </Badge>
           )}
@@ -88,7 +111,7 @@ export function PortfolioCard({
             {returnRate}
           </Text>
           {accessTokenExpired && (
-            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>
+            <Text fontSize="xs" color={expiryColor}>
               만료 시간: {tokenExpiryTime}
             </Text>
           )}

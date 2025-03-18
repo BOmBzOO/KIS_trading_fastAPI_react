@@ -12,7 +12,7 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
   }
 
   const truncateName = (name: string) => {
-    return name.length > 10 ? name.substring(0, 10) + '...' : name;
+    return name.length > 9 ? name.substring(0, 9) + '...' : name;
   };
 
   return (
