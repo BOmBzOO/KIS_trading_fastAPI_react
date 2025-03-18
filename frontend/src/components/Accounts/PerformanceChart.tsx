@@ -78,17 +78,17 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
 
     if (sortedData.length === 0) return { labels: [], datasets: [] };
 
-    const initialEvaluationAmount = sortedData[0].evaluation_amount || 0;
+    const initialTotalAssets = sortedData[0].total_assets || 0;
     const kstOffset = 9 * 60;
 
     const times: string[] = [];
     const values: number[] = [];
 
     sortedData.forEach((item) => {
-      const currentEvaluationAmount = item.evaluation_amount || 0;
-      const dailyReturnRate = initialEvaluationAmount === 0 
+      const currentTotalAssets = item.total_assets || 0;
+      const dailyReturnRate = initialTotalAssets === 0 
         ? 0 
-        : ((currentEvaluationAmount - initialEvaluationAmount) / initialEvaluationAmount) * 100;
+        : ((currentTotalAssets - initialTotalAssets) / initialTotalAssets) * 100;
 
       const utcDate = new Date(item.timestamp);
       const kstDate = new Date(utcDate.getTime() + kstOffset * 60000);
