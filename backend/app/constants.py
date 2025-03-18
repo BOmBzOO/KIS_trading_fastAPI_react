@@ -1,4 +1,9 @@
 from datetime import time
+from pytz import timezone
+
+# Timezone 설정
+KST = timezone('Asia/Seoul')
+UTC = timezone('UTC')
 
 # 토큰 관련 설정
 TOKEN_REFRESH_THRESHOLD_MINUTES = 30  # 토큰 만료 전 갱신 시작 시간(분)

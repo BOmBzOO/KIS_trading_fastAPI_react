@@ -186,6 +186,7 @@ class DailyTrade(DailyTradeBase, table=True):
         sa_column=Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     )
     updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone('Asia/Seoul')),
         sa_column=Column(
             TIMESTAMP(timezone=True),
             server_default=text("CURRENT_TIMESTAMP"),
@@ -210,7 +211,7 @@ class Account(AccountBase, table=True):
     owner_name: str | None = None
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = Field(
-        default=None, 
+        default_factory=lambda: datetime.now(timezone('Asia/Seoul')), 
         sa_column=Column(
             TIMESTAMP(timezone=True),
             server_default=text("CURRENT_TIMESTAMP")
@@ -280,7 +281,7 @@ class MinutelyBalance(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone('Asia/Seoul')),
         sa_column=Column(
             TIMESTAMP(timezone=True),
-            server_default=text("CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul'")
+            server_default=text("CURRENT_TIMESTAMP")
         )
     )
     

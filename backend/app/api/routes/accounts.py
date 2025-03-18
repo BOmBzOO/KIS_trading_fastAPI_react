@@ -17,6 +17,7 @@ from app.api.services.background_tasks import (
     should_refresh_token
 )
 from app.api.services.trade_service import process_trade_data, update_account_daily_trades
+from app.constants import KST
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -255,9 +256,9 @@ async def update_daily_trades(
     try:
         # 날짜 범위 설정
         if not end_date:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = datetime.now(KST).strftime("%Y-%m-%d")
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            start_date = (datetime.now(KST) - timedelta(days=7)).strftime("%Y-%m-%d")
 
         # 계좌 정보 조회 및 권한 확인
         account = session.get(Account, account_id)
@@ -346,7 +347,7 @@ async def get_minutely_balances(
 
     # 기본값으로 오늘 데이터 조회
     if not end_time:
-        end_time = datetime.now()
+        end_time = datetime.now(KST)
     if not start_time:
         start_time = end_time.replace(hour=9, minute=0, second=0, microsecond=0)
         if end_time.hour >= 15 and end_time.minute >= 30:

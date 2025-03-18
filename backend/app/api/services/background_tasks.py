@@ -13,7 +13,9 @@ from app.constants import (
     LOG_FORMAT,
     LOG_DATE_FORMAT,
     TOKEN_CHECK_INTERVAL,
-    BALANCE_CHECK_INTERVAL
+    BALANCE_CHECK_INTERVAL,
+    KST,
+    UTC
 )
 from app.core.db import engine
 from app.models import Account, MinutelyBalance
@@ -32,8 +34,8 @@ logger = logging.getLogger(__name__)
 background_tasks = set()
 last_balance_check = {}  # 계정별 마지막 잔고 체크 시간 저장
 last_token_check = {}    # 계정별 마지막 토큰 체크 시간 저장
-last_token_task_time = datetime.now()  # 마지막 토큰 체크 작업 시간
-last_balance_task_time = datetime.now()  # 마지막 잔고 체크 작업 시간
+last_token_task_time = datetime.now(KST)  # 마지막 토큰 체크 작업 시간
+last_balance_task_time = datetime.now(KST)  # 마지막 잔고 체크 작업 시간
 
 def should_refresh_token(expires_at: Optional[datetime]) -> bool:
     """토큰 갱신이 필요한지 확인"""
@@ -41,11 +43,12 @@ def should_refresh_token(expires_at: Optional[datetime]) -> bool:
         return True
     
     threshold = timedelta(minutes=TOKEN_REFRESH_THRESHOLD_MINUTES)
-    return datetime.utcnow() + threshold >= expires_at
+    now = datetime.now(KST)
+    return now + threshold >= expires_at
 
 def should_check_token(account_id: str) -> bool:
     """토큰 체크가 필요한지 확인"""
-    now = datetime.now()
+    now = datetime.now(KST)
     last_check = last_token_check.get(account_id)
     
     if not last_check:
@@ -56,7 +59,7 @@ def should_check_token(account_id: str) -> bool:
 
 def should_check_balance(account_id: str) -> bool:
     """잔고 체크가 필요한지 확인"""
-    now = datetime.now()
+    now = datetime.now(KST)
     last_check = last_balance_check.get(account_id)
     
     if not last_check:
@@ -71,7 +74,7 @@ async def check_and_refresh_tokens():
     
     while True:
         try:
-            current_time = datetime.now()
+            current_time = datetime.now(KST)
             time_diff = (current_time - last_token_task_time).total_seconds()
             
             if time_diff < TOKEN_CHECK_INTERVAL:
@@ -135,7 +138,7 @@ async def check_and_save_balances():
     
     while True:
         try:
-            current_time = datetime.now()
+            current_time = datetime.now(KST)
             time_diff = (current_time - last_balance_task_time).total_seconds()
             
             if time_diff < BALANCE_CHECK_INTERVAL:
@@ -236,11 +239,9 @@ async def check_and_save_balances():
 
 async def update_daily_trades():
     """한국 시간 오전 3시에 모든 계정의 일별 거래 내역을 업데이트"""
-    kst = timezone('Asia/Seoul')
-    
     while True:
         try:
-            now = datetime.now(kst)
+            now = datetime.now(KST)
             
             # 다음 실행 시간 계산 (다음 날 오전 3시)
             next_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
@@ -262,8 +263,8 @@ async def update_daily_trades():
                 for account in accounts:
                     try:
                         # 7일치 데이터 업데이트
-                        end_date = datetime.now(kst).strftime("%Y-%m-%d")
-                        start_date = (datetime.now(kst) - timedelta(days=7)).strftime("%Y-%m-%d")
+                        end_date = datetime.now(KST).strftime("%Y-%m-%d")
+                        start_date = (datetime.now(KST) - timedelta(days=7)).strftime("%Y-%m-%d")
                         
                         success_count, failed_accounts = await update_account_daily_trades(
                             account_id=account.id,
