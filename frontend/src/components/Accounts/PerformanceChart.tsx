@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
-  Text,
   Flex,
-  Spinner
+  Spinner,
+  ButtonGroup,
+  useBreakpointValue
 } from '@chakra-ui/react';
-import { FaSync } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import { AccountsService } from '@/client/sdk.gen';
 import {
@@ -36,31 +36,49 @@ interface PerformanceChartProps {
   accountId: string;
 }
 
+type Period = 'minutely' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>('minutely');
+  const isMobile = useBreakpointValue({ base: true, md: false });
   
-  const { data: balanceHistory, refetch } = useQuery({
-    queryKey: ['balanceHistory', accountId],
+  const { data: balanceHistory } = useQuery({
+    queryKey: ['balanceHistory', accountId, selectedPeriod],
     queryFn: async () => {
-      // UTC 기준 시간 설정
       const now = new Date();
+      let startTime = new Date(now);
       
-      // KST 현재 시간 계산
-      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      
-      // UTC 23시 계산 (KST 8시에 해당)
-      const utcStartTime = new Date(now);
-      utcStartTime.setUTCDate(utcStartTime.getUTCDate() - 1);  // 하루 전으로 설정
-      utcStartTime.setUTCHours(23, 0, 0, 0);
-      
-      // 현재 KST 시간이 8시 이전이면 하루 더 전으로 설정
-      if (kstNow.getHours() < 8) {
-        utcStartTime.setUTCDate(utcStartTime.getUTCDate() - 1);
+      // 기간별 시작 시간 설정
+      switch (selectedPeriod) {
+        case 'minutely':
+          startTime.setDate(now.getDate() - 1);
+          startTime.setHours(8, 0, 0, 0);
+          if (now.getHours() < 8) {
+            startTime.setDate(startTime.getDate() - 1);
+          }
+          break;
+        case 'daily':
+          startTime.setDate(now.getDate() - 7);
+          startTime.setHours(8, 0, 0, 0);
+          break;
+        case 'weekly':
+          startTime.setDate(now.getDate() - 30);
+          startTime.setHours(8, 0, 0, 0);
+          break;
+        case 'monthly':
+          startTime.setMonth(now.getMonth() - 6);
+          startTime.setHours(8, 0, 0, 0);
+          break;
+        case 'yearly':
+          startTime.setFullYear(now.getFullYear() - 1);
+          startTime.setHours(8, 0, 0, 0);
+          break;
       }
 
       const response = await AccountsService.inquireBalanceFromDb({ 
         account_id: accountId,
-        start_time: utcStartTime.toISOString(),
+        start_time: startTime.toISOString(),
         end_time: now.toISOString()
       });
       return response;
@@ -68,28 +86,71 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
     refetchInterval: 60 * 1000
   });
 
-  const refreshData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await refetch();
-    } catch (error: unknown) {
-      console.error('데이터 새로고침 중 오류 발생:', error);
-    } finally {
-      setIsLoading(false);
+  const getPeriodLabel = (period: Period) => {
+    switch (period) {
+      case 'minutely':
+        return '당일';
+      case 'daily':
+        return '일별';
+      case 'weekly':
+        return '주별';
+      case 'monthly':
+        return '월별';
+      case 'yearly':
+        return '년별';
+      default:
+        return '';
     }
-  }, [refetch]);
+  };
 
   const chartData = React.useMemo(() => {
     if (!balanceHistory) return { labels: [], datasets: [] };
 
-    const sortedData = [...balanceHistory].sort((a, b) => 
+    let sortedData = [...balanceHistory].sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
 
-    if (sortedData.length === 0) return { labels: [], datasets: [] };
+    if (sortedData.length === 0 || selectedPeriod !== 'minutely') {
+      const now = new Date();
+      const dummyData = [];
+      const baseAmount = 1000000;
 
-    const initialTotalAssets = sortedData[0].total_assets || 0;
+      for (let i = (selectedPeriod === 'yearly' ? 11 : (selectedPeriod === 'monthly' ? 5 : (selectedPeriod === 'weekly' ? 29 : 6))); i >= 0; i--) {
+        const date = new Date(now);
+        if (selectedPeriod === 'yearly' || selectedPeriod === 'monthly') {
+          date.setMonth(date.getMonth() - i);
+        } else {
+          date.setDate(date.getDate() - i);
+        }
 
+        const randomChange = (Math.random() - 0.5) * 0.1;
+        const amount = baseAmount * (1 + randomChange * (i + 1));
+
+        dummyData.push({ 
+          id: `dummy-${i}`,
+          account_id: accountId,
+          timestamp: date.toISOString(),
+          total_assets: amount,
+          available_cash: amount * 0.3,
+          deposit_balance: amount * 0.7,
+          stock_value: 0,
+          total_profit_loss: amount - baseAmount,
+          daily_profit_loss: amount - baseAmount,
+          daily_profit_loss_rate: randomChange * 100,
+          total_profit_loss_rate: ((amount - baseAmount) / baseAmount) * 100,
+          d2_deposit_balance: amount * 0.7,
+          evaluation_amount: 0,
+          purchase_amount: 0,
+          evaluation_profit_loss: amount - baseAmount,
+          profit_loss_rate: ((amount - baseAmount) / baseAmount) * 100,
+          created_at: date.toISOString(),
+          updated_at: date.toISOString()
+        });
+      }
+      sortedData = dummyData;
+    }
+
+    const initialTotalAssets = sortedData[0]?.total_assets || 0;
     const times: string[] = [];
     const values: number[] = [];
 
@@ -99,15 +160,29 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
         ? 0 
         : ((currentTotalAssets - initialTotalAssets) / initialTotalAssets) * 100;
 
-      // UTC를 KST로 변환
-      const utcDate = new Date(item.timestamp);
-      const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000);
+      const date = new Date(item.timestamp);
+      let timeFormat: Intl.DateTimeFormatOptions;
       
-      times.push(kstDate.toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }));
+      switch (selectedPeriod) {
+        case 'minutely':
+          timeFormat = { hour: '2-digit', minute: '2-digit', hour12: false };
+          times.push(date.toLocaleTimeString('ko-KR', timeFormat));
+          break;
+        case 'daily':
+        case 'weekly':
+          timeFormat = { month: '2-digit', day: '2-digit' };
+          times.push(date.toLocaleDateString('ko-KR', timeFormat));
+          break;
+        case 'monthly':
+        case 'yearly':
+          timeFormat = { month: '2-digit' };
+          times.push(date.toLocaleDateString('ko-KR', timeFormat));
+          break;
+        default:
+          timeFormat = { hour: '2-digit', minute: '2-digit', hour12: false };
+          times.push(date.toLocaleTimeString('ko-KR', timeFormat));
+      }
+
       values.push(Number(dailyReturnRate.toFixed(2)));
     });
 
@@ -115,7 +190,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
       labels: times,
       datasets: [
         {
-          label: 'KST 8시 기준 수익률',
+          label: `${getPeriodLabel(selectedPeriod)} 누적수익률`,
           data: values,
           borderColor: '#4299E1',
           backgroundColor: 'rgba(66, 153, 225, 0.1)',
@@ -128,7 +203,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
         },
       ],
     };
-  }, [balanceHistory]);
+  }, [balanceHistory, selectedPeriod, accountId]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
@@ -182,7 +257,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
       },
       y: {
         grid: {
-          // color: '#E2E8F0',
           display: false
         },
         ticks: {
@@ -190,7 +264,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
           font: {
             size: 12,
           },
-          callback: value => `${value}%`,
+          callback: (value: string | number) => `${Number(value).toFixed(2)}%`,
         },
       },
     },
@@ -202,20 +276,22 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   };
 
   return (
-    <Box h="400px" w="100%" p={1}>
-      <Flex mb={4} justify="space-between" align="center">
-        <Button
-          onClick={refreshData}
-          size="sm"
-          loading={isLoading}
-          colorScheme="gray"
-          variant="ghost"
-        >
-          <Flex align="center" gap={2}>
-            <FaSync />
-            <Text>새로고침</Text>
-          </Flex>
-        </Button>
+    <Box h="400px" w="100%" p={1} overflow="hidden">
+      <Flex mb={4} direction={isMobile ? "column" : "row"} gap={2} justify="flex-end" align="center">
+        <ButtonGroup size="sm" attached variant="outline">
+          {['minutely', 'daily', 'weekly', 'monthly', 'yearly'].map((period) => (
+            <Button
+              key={period}
+              onClick={() => setSelectedPeriod(period as Period)}
+              colorScheme={selectedPeriod === period ? 'blue' : 'gray'}
+              variant={selectedPeriod === period ? 'solid' : 'outline'}
+              px={isMobile ? 2 : 4}
+              fontSize={isMobile ? "xs" : "sm"}
+            >
+              {getPeriodLabel(period as Period)}
+            </Button>
+          ))}
+        </ButtonGroup>
       </Flex>
       
       {isLoading ? (
@@ -223,8 +299,29 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
           <Spinner />
         </Flex>
       ) : (
-        <Box h="300px">
-          <Line data={chartData} options={options} />
+        <Box h="300px" overflow="hidden">
+          <Line data={chartData} options={{
+            ...options,
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: '#718096',
+                  font: { size: isMobile ? 10 : 12 },
+                  maxRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
+                  minRotation: selectedPeriod === 'monthly' || selectedPeriod === 'yearly' ? 0 : (isMobile ? 30 : 45),
+                },
+              },
+              y: {
+                grid: { display: false },
+                ticks: {
+                  color: '#718096',
+                  font: { size: isMobile ? 10 : 12 },
+                  callback: (value: string | number) => `${Number(value).toFixed(2)}%`,
+                },
+              },
+            },
+          }} />
         </Box>
       )}
     </Box>

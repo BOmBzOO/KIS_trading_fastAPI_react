@@ -32,7 +32,7 @@ export function AccountDetail({ portfolio, balanceInfo, isLoading }: AccountDeta
 
         {/* 차트 */}
         <Box 
-          p={6}
+          p={{ base: 2, md: 6 }}
           borderRadius="xl"
           border="2px solid var(--chakra-colors-gray-200)"
           backgroundColor="var(--chakra-colors-chakra-bg)"
@@ -40,6 +40,7 @@ export function AccountDetail({ portfolio, balanceInfo, isLoading }: AccountDeta
             borderColor: "var(--chakra-colors-gray-600)"
           }}
           height="400px"
+          overflow="hidden"
         >
           <PerformanceChart accountId={portfolio.accountId} />
         </Box>

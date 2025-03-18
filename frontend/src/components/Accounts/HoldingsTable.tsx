@@ -1,13 +1,19 @@
-import { Box } from "@chakra-ui/react"
+import { Box, useBreakpointValue } from "@chakra-ui/react"
 
 interface HoldingsTableProps {
   holdings: any[]
 }
 
 export function HoldingsTable({ holdings }: HoldingsTableProps) {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
   if (!holdings?.length) {
     return null
   }
+
+  const truncateName = (name: string) => {
+    return name.length > 10 ? name.substring(0, 10) + '...' : name;
+  };
 
   return (
     <Box>
@@ -26,6 +32,24 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
                 color: "var(--chakra-colors-chakra-text-color)",
                 fontWeight: "bold"
               }}>종목명</th>
+              {!isMobile && (
+                <>
+                  <th style={{ 
+                    padding: "12px 16px", 
+                    textAlign: "right", 
+                    borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                    color: "var(--chakra-colors-chakra-text-color)",
+                    fontWeight: "bold"
+                  }}>평가금액</th>
+                  <th style={{ 
+                    padding: "12px 16px", 
+                    textAlign: "right", 
+                    borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                    color: "var(--chakra-colors-chakra-text-color)",
+                    fontWeight: "bold"
+                  }}>평가손익</th>
+                </>
+              )}
               <th style={{ 
                 padding: "12px 16px", 
                 textAlign: "right", 
@@ -33,20 +57,6 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
                 color: "var(--chakra-colors-chakra-text-color)",
                 fontWeight: "bold"
               }}>보유수량</th>
-              <th style={{ 
-                padding: "12px 16px", 
-                textAlign: "right", 
-                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
-                color: "var(--chakra-colors-chakra-text-color)",
-                fontWeight: "bold"
-              }}>평가금액</th>
-              <th style={{ 
-                padding: "12px 16px", 
-                textAlign: "right", 
-                borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
-                color: "var(--chakra-colors-chakra-text-color)",
-                fontWeight: "bold"
-              }}>평가손익</th>
               <th style={{ 
                 padding: "12px 16px", 
                 textAlign: "right", 
@@ -66,25 +76,29 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
                   borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
                   color: "var(--chakra-colors-chakra-text-color)",
                   fontWeight: "500"
-                }}>{item.prdt_name}</td>
+                }}>{isMobile ? truncateName(item.prdt_name) : item.prdt_name}</td>
+                {!isMobile && (
+                  <>
+                    <td style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "right", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)"
+                    }}>{item.evlu_amt?.toLocaleString()}</td>
+                    <td style={{ 
+                      padding: "12px 16px", 
+                      textAlign: "right", 
+                      borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
+                      color: "var(--chakra-colors-chakra-text-color)"
+                    }}>{item.evlu_pfls_amt?.toLocaleString()}</td>
+                  </>
+                )}
                 <td style={{ 
                   padding: "12px 16px", 
                   textAlign: "right", 
                   borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
                   color: "var(--chakra-colors-chakra-text-color)"
                 }}>{item.hldg_qty?.toLocaleString()}</td>
-                <td style={{ 
-                  padding: "12px 16px", 
-                  textAlign: "right", 
-                  borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
-                  color: "var(--chakra-colors-chakra-text-color)"
-                }}>{item.evlu_amt?.toLocaleString()}</td>
-                <td style={{ 
-                  padding: "12px 16px", 
-                  textAlign: "right", 
-                  borderBottom: "1px solid var(--chakra-colors-chakra-border-color)",
-                  color: "var(--chakra-colors-chakra-text-color)"
-                }}>{item.evlu_pfls_amt?.toLocaleString()}</td>
                 <td style={{ 
                   padding: "12px 16px", 
                   textAlign: "right", 
