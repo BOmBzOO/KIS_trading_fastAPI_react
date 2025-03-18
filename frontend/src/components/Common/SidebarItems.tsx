@@ -41,7 +41,7 @@ const SidebarItems = ({ onClose }: SidebarItemsProps) => {
           background: "gray.subtle",
         }}
         alignItems="center"
-        fontSize="lg"
+        fontSize="sm"
       >
         <Icon as={icon} alignSelf="center" />
         <Text ml={2}>{title}</Text>

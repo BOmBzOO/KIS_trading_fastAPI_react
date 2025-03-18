@@ -292,7 +292,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   return (
     <Box h="400px" w="100%" p={1} overflow="hidden">
       <Flex mb={4} direction={isMobile ? "column" : "row"} gap={2} justify="flex-end" align="center">
-        <ButtonGroup size="xs" variant="outline" attached borderRadius="full">
+        <ButtonGroup size="xs" variant="outline" spacing={2}>
           {['minutely', 'daily', 'weekly', 'monthly', 'yearly'].map((period) => (
             <Button
               key={period}
@@ -302,9 +302,9 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
               px={isMobile ? 1.5 : 2}
               fontSize="xs"
               height="24px"
+              width="24px"
+              borderRadius="full"
               transition="all 0.15s"
-              _first={{ borderTopLeftRadius: 'full', borderBottomLeftRadius: 'full' }}
-              _last={{ borderTopRightRadius: 'full', borderBottomRightRadius: 'full' }}
               _hover={{
                 bg: selectedPeriod === period ? 'blue.500' : 'gray.50',
                 color: selectedPeriod === period ? 'white' : 'gray.700',

@@ -19,7 +19,7 @@ export const system = createSystem(defaultConfig, {
     },
     "::-webkit-scrollbar": {
       height: "8px",
-      width: "8px",
+      width: "0px",
     },
     "::-webkit-scrollbar-track": {
       background: "var(--chakra-colors-gray-100)",
