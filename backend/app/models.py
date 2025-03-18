@@ -125,7 +125,7 @@ class AccountUpdate(SQLModel):
     app_secret: str | None = Field(default=None, max_length=1024)
     discord_webhook_url: str | None = Field(default=None, max_length=255)
     kis_access_token: str | None = Field(default=None, max_length=1024)
-    access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
+    access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=True)))
 
 class DailyTradeBase(SQLModel):
     # output1 필드
@@ -182,14 +182,14 @@ class DailyTrade(DailyTradeBase, table=True):
     account: "Account" = Relationship(back_populates="daily_trades")
     
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        sa_column=Column(TIMESTAMP(timezone=False), server_default=text("CURRENT_TIMESTAMP"))
+        default_factory=lambda: datetime.now(timezone('Asia/Seoul')),
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     )
     updated_at: datetime = Field(
         sa_column=Column(
-            TIMESTAMP(timezone=False),
+            TIMESTAMP(timezone=True),
             server_default=text("CURRENT_TIMESTAMP"),
-            onupdate=datetime.utcnow
+            onupdate=lambda: datetime.now(timezone('Asia/Seoul'))
         )
     )
 
@@ -209,7 +209,13 @@ class Account(AccountBase, table=True):
     owner: User | None = Relationship(back_populates="accounts")
     owner_name: str | None = None
     kis_access_token: str | None = Field(default=None, max_length=1024)
-    access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=False)))
+    access_token_expired: datetime | None = Field(
+        default=None, 
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            server_default=text("CURRENT_TIMESTAMP")
+        )
+    )
     daily_trades: list["DailyTrade"] = Relationship(back_populates="account", cascade_delete=True)
     minutely_balances: list["MinutelyBalance"] = Relationship(back_populates="account", cascade_delete=True)
 
@@ -271,8 +277,11 @@ class MinutelyBalance(SQLModel, table=True):
     account_id: uuid.UUID = Field(foreign_key="account.id", nullable=False)
     account: "Account" = Relationship(back_populates="minutely_balances")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
-        sa_column=Column(TIMESTAMP(timezone=timezone('Asia/Seoul')), server_default=text("CURRENT_TIMESTAMP"))
+        default_factory=lambda: datetime.now(timezone('Asia/Seoul')),
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            server_default=text("CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul'")
+        )
     )
     
     # 계좌 요약 정보
@@ -299,3 +308,4 @@ class MinutelyBalance(SQLModel, table=True):
     __table_args__ = (
         Index('ix_minutely_balances_account_timestamp', 'account_id', 'timestamp'),
     )
+

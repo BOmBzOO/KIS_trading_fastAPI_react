@@ -42,16 +42,26 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
   const { data: balanceHistory, refetch } = useQuery({
     queryKey: ['balanceHistory', accountId],
     queryFn: async () => {
+      // UTC 기준 시간 설정
       const now = new Date();
-      const kstOffset = 9 * 60;
-      const today = new Date(now.getTime() + kstOffset * 60000);
-      today.setHours(0, 0, 0, 0);
-      const utcToday = new Date(today.getTime() - kstOffset * 60000);
+      
+      // KST 현재 시간 계산
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      
+      // UTC 23시 계산 (KST 8시에 해당)
+      const utcStartTime = new Date(now);
+      utcStartTime.setUTCDate(utcStartTime.getUTCDate() - 1);  // 하루 전으로 설정
+      utcStartTime.setUTCHours(23, 0, 0, 0);
+      
+      // 현재 KST 시간이 8시 이전이면 하루 더 전으로 설정
+      if (kstNow.getHours() < 8) {
+        utcStartTime.setUTCDate(utcStartTime.getUTCDate() - 1);
+      }
 
       const response = await AccountsService.inquireBalanceFromDb({ 
         account_id: accountId,
-        start_time: utcToday.toISOString(),
-        end_time: new Date().toISOString()
+        start_time: utcStartTime.toISOString(),
+        end_time: now.toISOString()
       });
       return response;
     },
@@ -79,7 +89,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
     if (sortedData.length === 0) return { labels: [], datasets: [] };
 
     const initialTotalAssets = sortedData[0].total_assets || 0;
-    const kstOffset = 9 * 60;
 
     const times: string[] = [];
     const values: number[] = [];
@@ -90,8 +99,9 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
         ? 0 
         : ((currentTotalAssets - initialTotalAssets) / initialTotalAssets) * 100;
 
+      // UTC를 KST로 변환
       const utcDate = new Date(item.timestamp);
-      const kstDate = new Date(utcDate.getTime() + kstOffset * 60000);
+      const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000);
       
       times.push(kstDate.toLocaleTimeString('ko-KR', {
         hour: '2-digit',
@@ -105,7 +115,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({ accountId })
       labels: times,
       datasets: [
         {
-          label: '당일 수익률',
+          label: 'KST 8시 기준 수익률',
           data: values,
           borderColor: '#4299E1',
           backgroundColor: 'rgba(66, 153, 225, 0.1)',
