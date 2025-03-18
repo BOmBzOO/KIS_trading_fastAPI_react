@@ -109,9 +109,37 @@ class AccountBase(SQLModel):
     app_secret: str = Field(max_length=1024)
     discord_webhook_url: str | None = Field(default=None, max_length=255)
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "acnt_name": "주식계좌1",
+                "cano": "50123456",
+                "acnt_prdt_cd": "01",
+                "acnt_type": "live",
+                "hts_id": "user123",
+                "is_active": True,
+                "app_key": "PSQcX5TxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY=",
+                "app_secret": "gXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+                "discord_webhook_url": "https://discord.com/api/webhooks/xxx/xxx"
+            }
+        }
+
 # Properties to receive on account creation
 class AccountCreate(AccountBase):
-    pass
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "acnt_name": "주식계좌1",
+                "cano": "50123456",
+                "acnt_prdt_cd": "01",
+                "acnt_type": "live",
+                "hts_id": "user123",
+                "is_active": True,
+                "app_key": "PSQcX5TxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY=",
+                "app_secret": "gXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+                "discord_webhook_url": "https://discord.com/api/webhooks/xxx/xxx"
+            }
+        }
 
 # Properties to receive on account update
 class AccountUpdate(SQLModel):
@@ -126,6 +154,23 @@ class AccountUpdate(SQLModel):
     discord_webhook_url: str | None = Field(default=None, max_length=255)
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = Field(default=None, sa_column=Column(TIMESTAMP(timezone=True)))
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "acnt_name": "주식계좌1",
+                "cano": "50123456",
+                "acnt_prdt_cd": "01",
+                "acnt_type": "live",
+                "hts_id": "user123",
+                "is_active": True,
+                "app_key": "PSQcX5TxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY=",
+                "app_secret": "gXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+                "discord_webhook_url": "https://discord.com/api/webhooks/xxx/xxx",
+                "kis_access_token": "eyJhbGciOiJIxxxxxxxxxxxxx",
+                "access_token_expired": "2024-03-19T15:30:00+09:00"
+            }
+        }
 
 class DailyTradeBase(SQLModel):
     # output1 필드
@@ -233,9 +278,54 @@ class AccountPublic(AccountBase):
     kis_access_token: str | None = Field(default=None, max_length=1024)
     access_token_expired: datetime | None = Field(default=None)
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "owner_id": "123e4567-e89b-12d3-a456-426614174111",
+                "owner_name": "홍길동",
+                "acnt_name": "주식계좌1",
+                "cano": "50123456",
+                "acnt_prdt_cd": "01",
+                "acnt_type": "live",
+                "hts_id": "user123",
+                "is_active": True,
+                "app_key": "PSQcX5TxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY=",
+                "app_secret": "gXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+                "discord_webhook_url": "https://discord.com/api/webhooks/xxx/xxx",
+                "kis_access_token": "eyJhbGciOiJIxxxxxxxxxxxxx",
+                "access_token_expired": "2024-03-19T15:30:00+09:00"
+            }
+        }
+
 class AccountsPublic(SQLModel):
     data: list[AccountPublic]
     count: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "data": [
+                    {
+                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "owner_id": "123e4567-e89b-12d3-a456-426614174111",
+                        "owner_name": "홍길동",
+                        "acnt_name": "주식계좌1",
+                        "cano": "50123456",
+                        "acnt_prdt_cd": "01",
+                        "acnt_type": "live",
+                        "hts_id": "user123",
+                        "is_active": True,
+                        "app_key": "PSQcX5TxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY=",
+                        "app_secret": "gXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+                        "discord_webhook_url": "https://discord.com/api/webhooks/xxx/xxx",
+                        "kis_access_token": "eyJhbGciOiJIxxxxxxxxxxxxx",
+                        "access_token_expired": "2024-03-19T15:30:00+09:00"
+                    }
+                ],
+                "count": 1
+            }
+        }
 
 class DailyTradeResponse(SQLModel):
     message: str
@@ -245,12 +335,54 @@ class DailyTradeResponse(SQLModel):
     error_count: int
     errors: list[str]
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "일별 거래내역이 성공적으로 업데이트되었습니다.",
+                "updated_count": 5,
+                "start_date": "20240301",
+                "end_date": "20240319",
+                "error_count": 0,
+                "errors": []
+            }
+        }
+
 class BalanceResponse(SQLModel):
     rt_cd: str | None = None
     msg1: str | None = None
     msg_cd: str | None = None
     output1: list[dict] | None = Field(default=None, description="보유종목 상세내역")
     output2: list[dict] | None = Field(default=None, description="계좌잔고 종합")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "rt_cd": "0",
+                "msg1": "정상처리",
+                "msg_cd": "MCA00000",
+                "output1": [
+                    {
+                        "pdno": "005930",
+                        "prdt_name": "삼성전자",
+                        "hldg_qty": 10,
+                        "pchs_avg_pric": 70000,
+                        "prpr": 73000,
+                        "evlu_pfls_amt": 30000,
+                        "evlu_pfls_rt": 4.28
+                    }
+                ],
+                "output2": [
+                    {
+                        "dnca_tot_amt": 1000000,
+                        "tot_evlu_amt": 5000000,
+                        "pchs_amt_smtl": 4800000,
+                        "evlu_amt_smtl": 5000000,
+                        "evlu_pfls_smtl": 200000,
+                        "tot_evlu_pfls_rt": 4.17
+                    }
+                ]
+            }
+        }
 
 # Generic message
 class Message(SQLModel):
