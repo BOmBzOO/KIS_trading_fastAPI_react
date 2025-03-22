@@ -1,45 +1,43 @@
 from datetime import datetime
-from sqlmodel import select
-from app.models import DailyTrade, Account
+from sqlmodel import select, Session
+from app.models.ls import Ls_Trade
+from app.models.account import Account
 from uuid import UUID
-from sqlmodel import Session
-from app.api.services.kis_api import inquire_daily_ccld_from_kis
+from app.api.services.ls_api import inquire_daily_ccld_from_LS
 
-def process_trade_data(response_data: dict, account_id: str) -> list[DailyTrade]:
-    """거래 데이터를 처리하여 DailyTrade 객체 리스트로 변환"""
+def process_trade_data_LS(response_data: dict, account_id: str) -> list[Ls_Trade]:
+    """LS 거래 데이터를 처리하여 Ls_Trade 객체 리스트로 변환"""
     trades = []
     output1 = response_data.get("output1", [])
     output2 = response_data.get("output2", {})
 
     # output2의 합산 정보를 저장
     summary_data = {
-        "total_order_qty_sum": int(output2.get("tot_ord_qty", 0)),
-        "total_trade_qty_sum": int(output2.get("tot_ccld_qty", 0)),
-        "total_trade_amt_sum": float(output2.get("tot_ccld_amt", 0)),
-        "estimated_tax_amt": float(output2.get("prsm_tlex_smtl", 0)),
+        "total_order_qty": int(output2.get("tot_ord_qty", 0)),
+        "total_trade_qty": int(output2.get("tot_ccld_qty", 0)),
+        "total_trade_amt": float(output2.get("tot_ccld_amt", 0)),
+        "estimated_tax": float(output2.get("prsm_tlex_smtl", 0)),
         "avg_trade_price": float(output2.get("pchs_avg_pric", 0))
     }
 
     # output1의 개별 거래 데이터 처리
     for trade in output1:
-        daily_trade = DailyTrade(
+        daily_trade = Ls_Trade(
             account_id=account_id,
-            order_date=trade["ord_dt"],
+            trade_date=datetime.strptime(trade["ord_dt"], "%Y%m%d").date(),
+            trade_time=datetime.strptime(trade["ord_tmd"], "%H%M%S").time(),
             stock_code=trade["pdno"],
             stock_name=trade["prdt_name"],
-            order_no=trade["odno"],
-            order_time=trade["ord_tmd"],
-            order_type=trade["sll_buy_dvsn_cd"],
-            order_price=float(trade["ord_unpr"]),
-            order_qty=int(trade["ord_qty"]),
-            trade_price=float(trade.get("avg_prvs", 0)),
-            trade_qty=int(trade.get("tot_ccld_qty", 0)),
-            trade_amount=float(trade.get("tot_ccld_amt", 0)),
-            total_trade_qty=int(trade.get("tot_ccld_qty", 0)),
-            remaining_qty=int(trade.get("rmn_qty", 0)),
-            cancel_qty=int(trade.get("cncl_cfrm_qty", 0)),
+            trade_type="매수" if trade["sll_buy_dvsn_cd"] == "01" else "매도",
+            quantity=int(trade["ord_qty"]),
+            price=float(trade["ord_unpr"]),
+            amount=float(trade["tot_ccld_amt"]),
+            fee=float(trade.get("prsm_tlex_smtl", 0)),
+            tax=float(trade.get("prsm_tlex_smtl", 0)),
+            profit_amount=float(trade.get("evlu_pfls_smtl", 0)),
             
-            # output1의 추가 필드들
+            # 추가 필드들
+            order_no=trade.get("odno"),
             original_order_no=trade.get("orgn_odno"),
             order_type_name=trade.get("ord_dvsn_name"),
             order_type_detail_name=trade.get("sll_buy_dvsn_cd_name"),
@@ -68,9 +66,9 @@ def process_trade_data(response_data: dict, account_id: str) -> list[DailyTrade]
         )
         trades.append(daily_trade)
 
-    return trades 
+    return trades
 
-async def update_account_daily_trades(
+async def update_account_daily_trades_LS(
     account_id: UUID,
     start_date: str,
     end_date: str,
@@ -85,21 +83,19 @@ async def update_account_daily_trades(
         if not account:
             return 0, [("Unknown", f"Account not found: {account_id}")]
             
-        # KIS API 호출
-        trade_data = await inquire_daily_ccld_from_kis(account, start_date, end_date)
+        # LS API 호출
+        trade_data = await inquire_daily_ccld_from_LS(account, start_date, end_date)
         
         if not trade_data.get("output1"):
             return 0, []
             
         # 거래 내역 처리 및 저장
-        from app.api.routes.accounts import process_trade_data
-        
-        for trade in process_trade_data(trade_data, str(account_id)):
+        for trade in process_trade_data_LS(trade_data, str(account_id)):
             try:
-                statement = select(DailyTrade).where(
-                    DailyTrade.account_id == account_id,
-                    DailyTrade.order_date == trade.order_date,
-                    DailyTrade.order_no == trade.order_no
+                statement = select(Ls_Trade).where(
+                    Ls_Trade.account_id == account_id,
+                    Ls_Trade.trade_date == trade.trade_date,
+                    Ls_Trade.order_no == trade.order_no
                 )
                 existing_trade = session.exec(statement).first()
 

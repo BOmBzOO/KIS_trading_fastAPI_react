@@ -11,6 +11,7 @@ services:
       timeout: 10s
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     env_file:
       - .env
     environment:
@@ -19,6 +20,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_DB=${POSTGRES_DB?Variable not set}
       - TZ=Asia/Seoul
+    command: >
+      postgres
+      -c timezone=Asia/Seoul
 
   adminer:
     image: adminer
@@ -110,7 +114,8 @@ services:
       - SENTRY_DSN=${SENTRY_DSN}
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
+      # test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
+      test: ["CMD", "curl", "-f", "http://bombzoo-home.iptime.org:8000/api/v1/utils/health-check/"]
       interval: 10s
       timeout: 5s
       retries: 5

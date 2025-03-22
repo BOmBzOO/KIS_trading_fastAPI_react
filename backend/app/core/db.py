@@ -5,7 +5,7 @@ from app.core.config import settings
 # Import all models explicitly to ensure they are registered
 from app.models import (
     User,
-    UserCreate,
+    User_Create,
     Account,
     Item
 )
@@ -30,7 +30,7 @@ def init_db(session: Session) -> None:
 
     user = session.query(User).filter(User.email == settings.FIRST_SUPERUSER).first()
     if not user:
-        user_in = UserCreate(
+        user_in = User_Create(
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,

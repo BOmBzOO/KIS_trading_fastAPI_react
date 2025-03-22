@@ -1,8 +1,10 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Tuple
 from pytz import timezone
+from zoneinfo import ZoneInfo
+from fastapi import HTTPException
 
 from sqlmodel import select, Session
 
@@ -15,12 +17,18 @@ from app.constants import (
     TOKEN_CHECK_INTERVAL,
     BALANCE_CHECK_INTERVAL,
     KST,
-    UTC
+    UTC,
+    MARKET_START_TIME,
+    MARKET_END_TIME
 )
 from app.core.db import engine
-from app.models import Account, MinutelyBalance
-from app.api.services.kis_api import get_kis_access_token, inquire_balance_from_kis
-from app.api.services.trade_service import update_account_daily_trades
+from app.models.account import Account
+from app.models.kis import Kis_Minutely_Balance
+from app.models.ls import Ls_Minutely_Balance, Ls_Trade
+from app.api.services.kis_api import get_access_token_KIS, inquire_balance_from_KIS, inquire_daily_ccld_from_KIS
+from app.api.services.ls_api import get_access_token_LS, inquire_balance_from_LS, inquire_daily_ccld_from_LS
+from app.api.services.kis_trade_service import process_trade_data_KIS, update_account_daily_trades_KIS
+from app.api.services.ls_trade_service import process_trade_data_LS, update_account_daily_trades_LS
 
 # 로깅 설정
 logging.basicConfig(
@@ -96,12 +104,23 @@ async def check_and_refresh_tokens():
                         
                     try:
                         if should_refresh_token(account.access_token_expired):
-                            access_token, expires_at = get_kis_access_token(
-                                app_key=account.app_key,
-                                app_secret=account.app_secret,
-                                acnt_type=account.acnt_type
-                            )
-                            account.kis_access_token = access_token
+                            if account.broker.upper() == "KIS":
+                                access_token, expires_at = get_access_token_KIS(
+                                    app_key=account.app_key,
+                                    app_secret=account.app_secret,
+                                    acnt_type=account.acnt_type
+                                )
+                            elif account.broker.upper() == "LS":
+                                access_token, expires_at = get_access_token_LS(
+                                    app_key=account.app_key,
+                                    app_secret=account.app_secret,
+                                    acnt_type=account.acnt_type
+                                )
+                            else:
+                                logger.warning(f"지원하지 않는 브로커: {account.broker}")
+                                continue
+                                
+                            account.access_token = access_token
                             account.access_token_expired = expires_at
                             session.add(account)
                             refresh_count += 1
@@ -160,63 +179,33 @@ async def check_and_save_balances():
                     try:
                         # 토큰 갱신이 필요한 경우 갱신
                         if should_refresh_token(account.access_token_expired):
-                            access_token, expires_at = get_kis_access_token(
-                                app_key=account.app_key,
-                                app_secret=account.app_secret,
-                                acnt_type=account.acnt_type
-                            )
-                            account.kis_access_token = access_token
+                            if account.broker.upper() == "KIS":
+                                access_token, expires_at = get_access_token_KIS(
+                                    app_key=account.app_key,
+                                    app_secret=account.app_secret,
+                                    acnt_type=account.acnt_type
+                                )
+                            elif account.broker.upper() == "LS":
+                                access_token, expires_at = get_access_token_LS(
+                                    app_key=account.app_key,
+                                    app_secret=account.app_secret,
+                                    acnt_type=account.acnt_type
+                                )
+                            account.access_token = access_token
                             account.access_token_expired = expires_at
                             session.add(account)
                             session.commit()
                         
                         # 잔고 조회 및 저장
-                        balance_data = await inquire_balance_from_kis(account)
+                        if account.broker.upper() == "KIS":
+                            balance_data = await inquire_balance_from_KIS(account)
+                            await process_and_save_kis_balance(account, balance_data, session)
+                        elif account.broker.upper() == "LS":
+                            balance_data = await inquire_balance_from_LS(account)
+                            await process_and_save_ls_balance(account, balance_data, session)
                         
-                        # 응답 데이터 확인 및 처리
-                        if balance_data and isinstance(balance_data, dict):
-                            output1 = balance_data.get("output1", [])
-                            output2 = balance_data.get("output2", [{}])[0] if balance_data.get("output2") else {}
-                            
-                            if output2:
-                                # 수익률 계산
-                                purchase_amount = float(output2.get("pchs_amt_smtl_amt", 0))
-                                eval_profit_loss = float(output2.get("evlu_pfls_smtl_amt", 0))
-                                profit_loss_rate = (eval_profit_loss / purchase_amount * 100) if purchase_amount > 0 else 0
-                                
-                                # MinutelyBalance 객체 생성 및 저장
-                                minutely_balance = MinutelyBalance(
-                                    account_id=account.id,
-                                    timestamp=datetime.now().astimezone(timezone('Asia/Seoul')),
-                                    total_balance=float(output2.get("dnca_tot_amt", 0)),
-                                    available_balance=float(output2.get("prvs_rcdl_excc_amt", 0)),
-                                    total_assets=float(output2.get("tot_evlu_amt", 0)),
-                                    purchase_amount=purchase_amount,
-                                    eval_amount=float(output2.get("evlu_amt_smtl_amt", 0)),
-                                    profit_loss=eval_profit_loss,
-                                    profit_loss_rate=profit_loss_rate,
-                                    asset_change_amount=float(output2.get("asst_icdc_amt", 0)),
-                                    asset_change_rate=float(output2.get("asst_icdc_rt", 0)),
-                                    holdings=[{
-                                        "stock_code": item.get("pdno"),
-                                        "stock_name": item.get("prdt_name"),
-                                        "quantity": int(item.get("hldg_qty", 0)),
-                                        "purchase_price": float(item.get("pchs_avg_pric", 0)),
-                                        "current_price": float(item.get("prpr", 0)),
-                                        "eval_amount": float(item.get("evlu_amt", 0)),
-                                        "profit_loss": float(item.get("evlu_pfls_amt", 0)),
-                                        "profit_loss_rate": float(item.get("evlu_pfls_rt", 0))
-                                    } for item in output1] if output1 else None
-                                )
-                                
-                                session.add(minutely_balance)
-                                session.commit()
-                                success_count += 1
-                                last_balance_check[account.id] = current_time
-                            else:
-                                failed_accounts.append((account.acnt_name, "잔고 데이터 없음"))
-                        else:
-                            failed_accounts.append((account.acnt_name, "잘못된 응답 형식"))
+                        success_count += 1
+                        last_balance_check[account.id] = current_time
                             
                     except Exception as e:
                         failed_accounts.append((account.acnt_name, str(e)))
@@ -266,12 +255,20 @@ async def update_daily_trades():
                         end_date = datetime.now(KST).strftime("%Y-%m-%d")
                         start_date = (datetime.now(KST) - timedelta(days=7)).strftime("%Y-%m-%d")
                         
-                        success_count, failed_accounts = await update_account_daily_trades(
-                            account_id=account.id,
-                            start_date=start_date,
-                            end_date=end_date,
-                            session=session
-                        )
+                        if account.broker.upper() == "KIS":
+                            success_count, failed_accounts = await update_account_daily_trades_KIS(
+                                account_id=account.id,
+                                start_date=start_date,
+                                end_date=end_date,
+                                session=session
+                            )
+                        elif account.broker.upper() == "LS":
+                            success_count, failed_accounts = await update_account_daily_trades_LS(
+                                account_id=account.id,
+                                start_date=start_date,
+                                end_date=end_date,
+                                session=session
+                            )
                         
                         total_success_count += success_count
                         all_failed_accounts.extend(failed_accounts)
@@ -292,6 +289,42 @@ async def update_daily_trades():
         
         await asyncio.sleep(60)  # 1분 대기 후 다음 체크
 
+async def check_and_save_minutely_data():
+    """모든 활성 계정의 분별 데이터를 수집하고 저장"""
+    while True:
+        try:
+            current_time = datetime.now(KST)
+            
+            # 장 시간 중에만 실행
+            if (current_time.time() >= MARKET_START_TIME and 
+                current_time.time() <= MARKET_END_TIME and
+                current_time.weekday() < 5):  # 평일만
+                
+                with Session(engine) as session:
+                    statement = select(Account).where(Account.is_active == True)
+                    accounts = session.exec(statement).all()
+                    
+                    for account in accounts:
+                        try:
+                            if account.broker.upper() == "KIS":
+                                balance_data = await inquire_balance_from_KIS(account)
+                                await process_and_save_kis_balance(account, balance_data, session)
+                            elif account.broker.upper() == "LS":
+                                balance_data = await inquire_balance_from_LS(account)
+                                await process_and_save_ls_balance(account, balance_data, session)
+                            
+                            session.commit()
+                            
+                        except Exception as e:
+                            logger.error(f"분별 데이터 수집 실패 - 계정: {account.acnt_name}, 에러: {str(e)}")
+                            continue
+            
+            await asyncio.sleep(60)
+            
+        except Exception as e:
+            logger.error(f"분별 데이터 수집 중 오류 발생: {str(e)}")
+            await asyncio.sleep(60)
+
 def start_background_tasks():
     """백그라운드 태스크 시작"""
     logger.info("백그라운드 작업 시작")
@@ -311,9 +344,224 @@ def start_background_tasks():
     daily_trades_task = loop.create_task(update_daily_trades())
     background_tasks.add(daily_trades_task)
     daily_trades_task.add_done_callback(background_tasks.discard)
+    
+    # 분별 데이터 수집 태스크 추가
+    minutely_task = loop.create_task(check_and_save_minutely_data())
+    background_tasks.add(minutely_task)
+    minutely_task.add_done_callback(background_tasks.discard)
 
 def stop_background_tasks():
     """백그라운드 태스크 중지"""
     logger.info("백그라운드 작업 중지")
     for task in background_tasks:
-        task.cancel() 
+        task.cancel()
+
+def refresh_token_if_needed(account: Account) -> None:
+    """계정의 토큰이 만료되어가는 경우 갱신"""
+    if should_refresh_token(account.access_token_expired):  # access_token_expired 사용
+        try:
+            access_token, expires_at = get_access_token_KIS(
+                app_key=account.app_key,
+                app_secret=account.app_secret,
+                acnt_type=account.acnt_type
+            )
+            
+            # timezone 처리
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=ZoneInfo("Asia/Seoul"))
+            
+            account.access_token = access_token  # kis_access_token -> access_token
+            account.access_token_expired = expires_at
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"토큰 갱신 실패: {str(e)}"
+            ) 
+
+async def check_balance(account: Account, session: Session) -> None:
+    """계좌 잔고 확인 및 저장"""
+    try:
+        # 토큰 갱신이 필요한지 확인
+        if should_refresh_token(account.access_token_expired):  # kis_access_token_expired -> access_token_expired
+            access_token, expires_at = get_access_token_KIS(
+                app_key=account.app_key,
+                app_secret=account.app_secret,
+                acnt_type=account.acnt_type
+            )
+            account.access_token = access_token  # kis_access_token -> access_token
+            account.access_token_expired = expires_at
+            session.add(account)
+            session.commit()
+
+        # 잔고 조회
+        balance_response = await inquire_balance_from_KIS(account)
+        
+        # ... 나머지 코드 ...
+
+    except Exception as e:
+        logger.error(f"잔고 체크 실패 - 계정: {account.acnt_name}, 에러: {str(e)}")
+
+async def check_daily_trades(account: Account, session: Session) -> None:
+    """일별 거래 내역 확인 및 저장"""
+    try:
+        # 토큰 갱신이 필요한지 확인
+        if should_refresh_token(account.access_token_expired):  # kis_access_token_expired -> access_token_expired
+            access_token, expires_at = get_access_token_KIS(
+                app_key=account.app_key,
+                app_secret=account.app_secret,
+                acnt_type=account.acnt_type
+            )
+            account.access_token = access_token  # kis_access_token -> access_token
+            account.access_token_expired = expires_at
+            session.add(account)
+            session.commit()
+
+        # 거래 내역 조회
+        trades_response = await inquire_daily_ccld_from_KIS(account)
+        
+        # ... 나머지 코드 ...
+
+    except Exception as e:
+        logger.error(f"거래 내역 체크 실패 - 계정: {account.acnt_name}, 에러: {str(e)}") 
+
+async def process_and_save_ls_balance(account: Account, balance_data: dict, session: Session) -> None:
+    """LS 증권 잔고 데이터 처리 및 저장"""
+    try:
+        if balance_data and isinstance(balance_data, dict):
+            output1 = balance_data.get("output1", [])
+            output2 = balance_data.get("output2", [{}])[0] if balance_data.get("output2") else {}
+            
+            if output2:
+                # 수익률 계산
+                purchase_amount = float(output2.get("pchs_amt_smtl", 0))
+                eval_profit_loss = float(output2.get("evlu_pfls_smtl", 0))
+                profit_loss_rate = (eval_profit_loss / purchase_amount * 100) if purchase_amount > 0 else 0
+                
+                # MinutelyBalance 객체 생성 및 저장
+                minutely_balance_ls = Ls_Minutely_Balance(
+                    account_id=account.id,
+                    timestamp=datetime.now().astimezone(timezone('Asia/Seoul')),
+                    total_balance=float(output2.get("dnca_tot_amt", 0)),
+                    available_balance=float(output2.get("prvs_rcdl_excc_amt", 0)),
+                    total_assets=float(output2.get("tot_evlu_amt", 0)),
+                    purchase_amount=purchase_amount,
+                    eval_amount=float(output2.get("evlu_amt_smtl", 0)),
+                    profit_loss=eval_profit_loss,
+                    profit_loss_rate=profit_loss_rate,
+                    asset_change_amount=float(output2.get("asst_icdc_amt", 0)),
+                    asset_change_rate=float(output2.get("asst_icdc_rt", 0)),
+                    holdings=[{
+                        "stock_code": item.get("pdno"),
+                        "stock_name": item.get("prdt_name"),
+                        "quantity": int(item.get("hldg_qty", 0)),
+                        "purchase_price": float(item.get("pchs_avg_pric", 0)),
+                        "current_price": float(item.get("prpr", 0)),
+                        "eval_amount": float(item.get("evlu_amt", 0)),
+                        "profit_loss": float(item.get("evlu_pfls_amt", 0)),
+                        "profit_loss_rate": float(item.get("evlu_pfls_rt", 0))
+                    } for item in output1] if output1 else None
+                )
+                
+                session.add(minutely_balance_ls)
+                session.commit()
+                
+    except Exception as e:
+        logger.error(f"LS 잔고 데이터 처리 실패 - 계정: {account.acnt_name}, 에러: {str(e)}")
+
+async def update_account_daily_trades_ls(account_id: str, start_date: str, end_date: str, session: Session) -> tuple[int, list]:
+    """LS 증권 일별 거래내역 업데이트"""
+    try:
+        account = session.get(Account, account_id)
+        if not account:
+            return 0, [(account_id, "계좌를 찾을 수 없습니다.")]
+        
+        # 거래내역 조회
+        trades_data = await inquire_daily_ccld_from_LS(account, start_date, end_date)
+        
+        if not trades_data or not isinstance(trades_data, dict):
+            return 0, [(account.acnt_name, "잘못된 응답 형식")]
+        
+        success_count = 0
+        failed_trades = []
+        
+        # 거래내역 처리
+        for trade in trades_data.get("output1", []):
+            try:
+                # 거래유형 확인
+                trade_type = "매수" if trade.get("sll_buy_dvsn_cd") == "01" else "매도"
+                
+                # 거래내역 저장
+                ls_trade = Ls_Trade(
+                    account_id=account.id,
+                    trade_date=datetime.strptime(trade.get("ord_dt", ""), "%Y%m%d").date(),
+                    trade_time=datetime.strptime(trade.get("ord_tmd", ""), "%H%M%S").time(),
+                    stock_code=trade.get("pdno", ""),
+                    stock_name=trade.get("prdt_name", ""),
+                    trade_type=trade_type,
+                    quantity=int(trade.get("ord_qty", 0)),
+                    price=float(trade.get("ord_unpr", 0)),
+                    amount=float(trade.get("tot_ccld_amt", 0)),
+                    fee=float(trade.get("prsm_tlex_smtl", 0)),
+                    tax=float(trade.get("prsm_tlex_smtl", 0)),
+                    profit_amount=float(trade.get("evlu_pfls_smtl", 0))
+                )
+                
+                session.add(ls_trade)
+                success_count += 1
+                
+            except Exception as e:
+                failed_trades.append((account.acnt_name, f"거래내역 처리 실패: {str(e)}"))
+                continue
+        
+        if success_count > 0:
+            session.commit()
+        
+        return success_count, failed_trades
+        
+    except Exception as e:
+        return 0, [(account_id, f"거래내역 업데이트 실패: {str(e)}")] 
+
+async def process_and_save_kis_balance(account: Account, balance_data: dict, session: Session) -> None:
+    """KIS 증권 잔고 데이터 처리 및 저장"""
+    try:
+        if balance_data and isinstance(balance_data, dict):
+            output1 = balance_data.get("output1", [])
+            output2 = balance_data.get("output2", [{}])[0] if balance_data.get("output2") else {}
+            
+            if output2:
+                # 수익률 계산
+                purchase_amount = float(output2.get("pchs_amt_smtl_amt", 0))
+                eval_profit_loss = float(output2.get("evlu_pfls_smtl_amt", 0))
+                profit_loss_rate = (eval_profit_loss / purchase_amount * 100) if purchase_amount > 0 else 0
+                
+                # MinutelyBalance 객체 생성 및 저장
+                minutely_balance_kis = Kis_Minutely_Balance(
+                    account_id=account.id,
+                    timestamp=datetime.now().astimezone(timezone('Asia/Seoul')),
+                    total_balance=float(output2.get("dnca_tot_amt", 0)),
+                    available_balance=float(output2.get("prvs_rcdl_excc_amt", 0)),
+                    total_assets=float(output2.get("tot_evlu_amt", 0)),
+                    purchase_amount=purchase_amount,
+                    eval_amount=float(output2.get("evlu_amt_smtl_amt", 0)),
+                    profit_loss=eval_profit_loss,
+                    profit_loss_rate=profit_loss_rate,
+                    asset_change_amount=float(output2.get("asst_icdc_amt", 0)),
+                    asset_change_rate=float(output2.get("asst_icdc_rt", 0)),
+                    holdings=[{
+                        "stock_code": item.get("pdno"),
+                        "stock_name": item.get("prdt_name"),
+                        "quantity": int(item.get("hldg_qty", 0)),
+                        "purchase_price": float(item.get("pchs_avg_pric", 0)),
+                        "current_price": float(item.get("prpr", 0)),
+                        "eval_amount": float(item.get("evlu_amt", 0)),
+                        "profit_loss": float(item.get("evlu_pfls_amt", 0)),
+                        "profit_loss_rate": float(item.get("evlu_pfls_rt", 0))
+                    } for item in output1] if output1 else None
+                )
+                
+                session.add(minutely_balance_kis)
+                session.commit()
+                
+    except Exception as e:
+        logger.error(f"KIS 잔고 데이터 처리 실패 - 계정: {account.acnt_name}, 에러: {str(e)}") 

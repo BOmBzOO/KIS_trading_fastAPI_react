@@ -1,134 +1,106 @@
-# KIS Trading System
+# KIS/LS 증권 트레이딩 플랫폼
 
-한국투자증권 API를 이용한 트레이딩 시스템입니다.
-
-## 기술 스택
-
-- **Backend**: FastAPI, SQLModel, Alembic
-- **Frontend**: React, TypeScript, Chakra UI
-- **Database**: PostgreSQL
-- **Infrastructure**: Docker, Docker Compose
+## 프로젝트 소개
+이 프로젝트는 한국투자증권(KIS)과 LS증권의 API를 활용하여 주식 거래 및 계좌 관리를 할 수 있는 웹 기반 트레이딩 플랫폼입니다.
 
 ## 주요 기능
+- KIS/LS 증권 계좌 연동 및 관리
+- 실시간 잔고 조회
+- 일별 거래 내역 조회
+- 분별 데이터 수집 및 저장
+- 자동 토큰 갱신
+- 백그라운드 작업 관리
 
-1. **사용자 관리**
-   - 회원가입/로그인
-   - 권한 관리 (일반 사용자/관리자)
-   - 프로필 관리
+## 기술 스택
+### 백엔드
+- FastAPI
+- SQLModel
+- PostgreSQL
+- Redis
+- Celery
 
-2. **계좌 관리**
-   - 계좌 등록 및 관리
-   - API 키 관리
-   - 실계좌/모의계좌 설정
-   - Discord 웹훅 설정
+### 프론트엔드
+- React
+- TypeScript
+- Material-UI
+- Chart.js
 
-## 시작하기
+## 설치 및 실행
+### 환경 설정
+1. Python 3.8 이상 설치
+2. Node.js 16 이상 설치
+3. PostgreSQL 설치
+4. Redis 설치
 
-### 사전 요구사항
-
-- Docker
-- Docker Compose
-- Git
-
-### 설치 및 실행
-
-1. 저장소 클론
+### 백엔드 설정
 ```bash
-git clone [repository-url]
-cd [project-directory]
-```
+# 가상환경 생성 및 활성화
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-2. 환경 변수 설정
-```bash
+# 의존성 설치
+cd backend
+pip install -r requirements.txt
+
+# 환경 변수 설정
 cp .env.example .env
-# .env 파일을 수정하여 필요한 설정을 입력
+# .env 파일을 수정하여 필요한 설정값 입력
+
+# 데이터베이스 마이그레이션
+alembic upgrade head
+
+# 서버 실행
+uvicorn app.main:app --reload
 ```
 
-3. 도커 컨테이너 실행
+### 프론트엔드 설정
 ```bash
-docker compose up -d
+# 의존성 설치
+cd frontend
+npm install
+
+# 개발 서버 실행
+npm run dev
 ```
 
-4. 데이터베이스 마이그레이션
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-### API 문서
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+## API 문서
+- 백엔드 API 문서: http://localhost:8000/docs
+- 프론트엔드: http://localhost:3000
 
 ## 프로젝트 구조
-
 ```
 .
 ├── backend/
 │   ├── app/
 │   │   ├── api/
+│   │   │   ├── routes/
+│   │   │   └── services/
 │   │   ├── core/
 │   │   ├── models/
-│   │   └── tests/
+│   │   └── schemas/
 │   ├── alembic/
-│   └── requirements.txt
+│   └── tests/
 ├── frontend/
 │   ├── src/
-│   ├── public/
-│   └── package.json
-├── docker/
-├── docker-compose.yml
-└── README.md
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── services/
+│   └── public/
+└── docker/
 ```
 
-## 데이터베이스 구조
-
-### 주요 모델
-
-1. **User**
-   - 사용자 정보 관리
-   - 이메일, 비밀번호, 권한 등
-
-2. **Account**
-   - 거래 계좌 정보
-   - 계좌번호, 상품코드, 계좌유형 등
-
-3. **AccountAPIConfig**
-   - API 설정 정보
-   - API 키, 시크릿 키, Discord 웹훅 URL 등
-
-### 관계
-- User -(1:N)-> Account: 사용자는 여러 계좌를 가질 수 있음
-- Account -(1:1)-> AccountAPIConfig: 각 계좌는 하나의 API 설정을 가짐
-
-## 개발 가이드
-
-### 백엔드 개발
-
-1. 새로운 모델 추가
-```python
-# app/models.py에 모델 추가
-# alembic revision --autogenerate로 마이그레이션 생성
+## 환경 변수
+### 백엔드 (.env)
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+REDIS_URL=redis://localhost:6379
+SECRET_KEY=your-secret-key
 ```
 
-2. API 엔드포인트 추가
-```python
-# app/api/routes/에 라우터 추가
-# app/api/deps.py에 필요한 의존성 추가
+### 프론트엔드 (.env)
+```
+REACT_APP_API_URL=http://localhost:8000
 ```
 
-### 프론트엔드 개발
-
-1. 새로운 컴포넌트 추가
-```typescript
-// src/components/에 컴포넌트 추가
-// src/routes/에 라우트 추가
-```
-
-2. API 통신
-```typescript
-// src/api/에 API 호출 함수 추가
-```
-
-## 라이센스
-
-MIT License
+## 라이선스
+이 프로젝트는 MIT 라이선스를 따릅니다.

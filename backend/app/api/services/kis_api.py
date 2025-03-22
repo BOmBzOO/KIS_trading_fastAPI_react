@@ -1,15 +1,16 @@
 from datetime import datetime
 import requests
 from fastapi import HTTPException
-from app.models import Account
+from app.models.account import Account
 from app.constants import (
     KIS_API_BASE_URL,
     KIS_API_ENDPOINTS,
     KIS_API_TR_ID,
     KIS_API_PARAMS
 )
+from typing import Any
 
-def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple[str, datetime]:
+def get_access_token_KIS(app_key: str, app_secret: str, acnt_type: str) -> tuple[str, datetime]:
     """
     KIS API를 통해 access token을 받아옵니다.
     Returns:
@@ -43,8 +44,8 @@ def get_kis_access_token(app_key: str, app_secret: str, acnt_type: str) -> tuple
             detail=f"KIS API 토큰 만료 시간 파싱 실패: {str(e)}"
         )
 
-async def inquire_balance_from_kis(account: Account) -> dict:
-    """KIS API를 통해 계좌 잔고를 조회"""
+async def inquire_balance_from_KIS(account: Account) -> Any:
+    """KIS API를 통한 잔고 조회"""
     base_url = KIS_API_BASE_URL[account.acnt_type]
     
     try:
@@ -56,7 +57,7 @@ async def inquire_balance_from_kis(account: Account) -> dict:
                 **KIS_API_PARAMS["balance"]
             },
             headers={
-                "authorization": f"Bearer {account.kis_access_token}",
+                "authorization": f"Bearer {account.access_token}",
                 "appkey": account.app_key,
                 "appsecret": account.app_secret,
                 "tr_id": KIS_API_TR_ID["balance"][account.acnt_type],
@@ -72,7 +73,7 @@ async def inquire_balance_from_kis(account: Account) -> dict:
             detail=f"KIS API 잔고 조회 실패: {str(e)}"
         )
 
-async def inquire_daily_ccld_from_kis(account: Account, start_date: str, end_date: str) -> dict:
+async def inquire_daily_ccld_from_KIS(account: Account, start_date: str, end_date: str) -> dict:
     """KIS API를 통해 일별 주문체결 내역을 조회"""
     base_url = KIS_API_BASE_URL[account.acnt_type]
     
@@ -85,7 +86,7 @@ async def inquire_daily_ccld_from_kis(account: Account, start_date: str, end_dat
     }
     
     headers = {
-        "authorization": f"Bearer {account.kis_access_token}",
+        "authorization": f"Bearer {account.access_token}",
         "appkey": account.app_key,
         "appsecret": account.app_secret,
         "tr_id": KIS_API_TR_ID["daily_trades"][account.acnt_type],
