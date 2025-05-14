@@ -76,7 +76,7 @@ async def get_account_balance(
     if not current_user.is_superuser and (account.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    if broker.upper() != account.broker:
+    if broker.upper() != account.broker.upper():
         raise HTTPException(status_code=400, detail=f"Account broker mismatch. Expected: {account.broker}, Got: {broker.upper()}")
 
     if account.is_active:
@@ -105,7 +105,7 @@ def refresh_account_token(
     if not current_user.is_superuser and (account.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    if broker.upper() != account.broker:
+    if broker.upper() != account.broker.upper():
         raise HTTPException(status_code=400, detail=f"Account broker mismatch. Expected: {account.broker}, Got: {broker.upper()}")
 
     if not account.is_active:
@@ -159,7 +159,7 @@ async def update_daily_trades(
     if not current_user.is_superuser and (account.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    if broker.upper() != account.broker:
+    if broker.upper() != account.broker.upper():
         raise HTTPException(status_code=400, detail=f"Account broker mismatch. Expected: {account.broker}, Got: {broker.upper()}")
 
     if not account.is_active:
@@ -199,7 +199,7 @@ async def get_daily_trades(
     if not current_user.is_superuser and (account.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    if broker.upper() != account.broker:
+    if broker.upper() != account.broker.upper():
         raise HTTPException(status_code=400, detail=f"Account broker mismatch. Expected: {account.broker}, Got: {broker.upper()}")
 
     if not account.is_active:
@@ -236,7 +236,7 @@ async def get_minutely_balance(
     if not current_user.is_superuser and (account.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    if broker.upper() != account.broker:
+    if broker.upper() != account.broker.upper():
         raise HTTPException(status_code=400, detail=f"Account broker mismatch. Expected: {account.broker}, Got: {broker.upper()}")
 
     if account.is_active:

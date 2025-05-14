@@ -695,7 +695,7 @@ export class AccountsService {
   public static inquireBalanceFromKis(accountId: string | number): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/accounts/{account_id}/inquire_balance_from_kis",
+      url: "/api/v1/broker/kis/{account_id}/balance",
       path: {
         account_id: accountId,
       },
