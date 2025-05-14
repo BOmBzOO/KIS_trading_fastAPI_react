@@ -104,18 +104,18 @@ async def create_account(
         owner_id=current_user.id
     )
 
-    # LS 계정인 경우 계좌 정보 조회
-    if account_in.broker.lower() == "ls":
-        try:
-            account_info = await inquire_account_info_from_LS(account)
-            account.cano = account_info.get("cano", "")
-            account.acnt_prdt_cd = account_info.get("acnt_prdt_cd", "")
-            account.hts_id = account_info.get("hts_id", "")
-        except Exception as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"LS 계좌 정보 조회 실패: {str(e)}"
-            )
+    # # LS 계정인 경우 계좌 정보 조회
+    # if account_in.broker.lower() == "ls":
+    #     try:
+    #         account_info = await inquire_account_info_from_LS(account)
+    #         account.cano = account_info.get("cano", "")
+    #         account.acnt_prdt_cd = account_info.get("acnt_prdt_cd", "")
+    #         account.hts_id = account_info.get("hts_id", "")
+    #     except Exception as e:
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail=f"LS 계좌 정보 조회 실패: {str(e)}"
+    #         )
 
     print(account)
     
